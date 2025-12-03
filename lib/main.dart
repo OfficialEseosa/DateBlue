@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'screens/login_page.dart';
+import 'screens/home_page.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  await GoogleSignIn.instance.initialize();
   runApp(const MyApp());
 }
 
@@ -11,6 +22,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'DateBlue',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -24,24 +36,14 @@ class MyApp extends StatelessWidget {
         textTheme: GoogleFonts.robotoTextTheme(),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'DateBlue'),
-    );
-  }
-}
-
-class MyHomePage extends StatelessWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-      ),
-      body: const Center(
-        child: Text('Welcome to DateBlue'),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data != null) {
+            return HomePage(user: snapshot.data!);
+          }
+          return const LoginPage();
+        },
       ),
     );
   }
