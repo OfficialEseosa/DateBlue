@@ -73,7 +73,7 @@ class _LoginPageState extends State<LoginPage> {
       debugPrint('Error signing in: $error');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error signing in: $error')),
+          const SnackBar(content: Text('Error signing in. Please try again later.')),
         );
       }
     }
@@ -150,8 +150,8 @@ class _LoginPageState extends State<LoginPage> {
                     height: 56,
                     child: ElevatedButton.icon(
                       onPressed: _handleGoogleSignIn,
-                      icon: Image.network(
-                        'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/240px-Google_%22G%22_logo.svg.png',
+                      icon: Image.asset(
+                        'assets/images/google_logo.png',
                         height: 24,
                       ),
                       label: const Text(
