@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "290700951538",
+    "project_id": "dateblue-gsu",
+    "storage_bucket": "dateblue-gsu.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:290700951538:android:987564a72805a06e7fb56b",
+        "android_client_info": {
+          "package_name": "edu.gsu.dateblue"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "290700951538-l631c8vuoqs0hmeortempbg1nt6qvgkn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzubBUfmxQmoGcpqJbyub7xJtOb_dcKDs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "290700951538-l631c8vuoqs0hmeortempbg1nt6qvgkn.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "290700951538-l7nuo25apch6v91tdg4ufhclcufij5l0.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.dateblue"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
