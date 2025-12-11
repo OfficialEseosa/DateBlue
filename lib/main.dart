@@ -14,7 +14,12 @@ void main() async {
   );
   await GoogleSignIn.instance.initialize();
 
-  await LoginPage.preloadVideo();
+  try {
+    await LoginPage.preloadVideo();
+  } catch (e, stack) {
+    debugPrint('Failed to preload video: $e');
+    debugPrint(stack.toString());
+  }
   
   runApp(const MyApp());
 }

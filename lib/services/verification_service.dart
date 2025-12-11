@@ -46,10 +46,7 @@ class VerificationService {
   }
 
   /// Resend verification code via Cloud Function (secure)
-  Future<void> resendVerificationCode({
-    required String uid,
-    required String campusId,
-  }) async {
+  Future<void> resendVerificationCode() async {
     try {
       final result = await _functions
           .httpsCallable('resendVerificationCode')
@@ -67,7 +64,6 @@ class VerificationService {
 
   /// Verify PIN code via Cloud Function (secure with rate limiting)
   Future<bool> verifyPin({
-    required String uid,
     required String pin,
   }) async {
     try {

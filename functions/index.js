@@ -46,6 +46,14 @@ exports.sendVerificationEmail = functions.https.onCall(async (data, context) => 
     );
   }
 
+  // Validate campus ID format: only allow alphanumeric, underscore, and hyphen
+  if (!/^[a-zA-Z0-9_-]+$/.test(campusId)) {
+    throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Campus ID must be alphanumeric and may only contain underscores or hyphens.",
+    );
+  }
+
   const gsuEmail = `${campusId}@student.gsu.edu`;
 
   try {
@@ -90,6 +98,10 @@ exports.sendVerificationEmail = functions.https.onCall(async (data, context) => 
                "you will receive a code shortly.",
     };
   } catch (error) {
+    // If it's already an HttpsError, re-throw it
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
     console.error("Error sending verification email:", error);
     throw new functions.https.HttpsError(
         "internal",
@@ -112,6 +124,8 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
 
   const uid = context.auth.uid;
 
+  const RESEND_COOLDOWN_SECONDS = 60;
+
   try {
     // Get user document to retrieve GSU email
     const userDoc = await admin.firestore().collection("users").doc(uid).get();
@@ -123,12 +137,27 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
       );
     }
 
-    const gsuEmail = userDoc.data().gsuEmail;
+    const userData = userDoc.data();
+    const gsuEmail = userData.gsuEmail;
+    const lastResendAt = userData.lastResendAt;
+
     if (!gsuEmail) {
       throw new functions.https.HttpsError(
           "failed-precondition",
           "No GSU email on record.",
       );
+    }
+
+    // Check rate limiting
+    if (lastResendAt) {
+      const timeSinceLastResend = (Date.now() - lastResendAt.toMillis()) / 1000;
+      if (timeSinceLastResend < RESEND_COOLDOWN_SECONDS) {
+        const remainingSeconds = Math.ceil(RESEND_COOLDOWN_SECONDS - timeSinceLastResend);
+        throw new functions.https.HttpsError(
+            "resource-exhausted",
+            `Please wait ${remainingSeconds} seconds before requesting another code.`,
+        );
+      }
     }
 
     // Generate new secure code
@@ -138,6 +167,7 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
     await admin.firestore().collection("users").doc(uid).update({
       verificationCode: verificationCode,
       codeCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastResendAt: admin.firestore.FieldValue.serverTimestamp(),
       failedVerificationAttempts: 0,
       lastFailedAttempt: admin.firestore.FieldValue.delete(),
     });
@@ -156,6 +186,10 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
       message: "New verification code sent!",
     };
   } catch (error) {
+    // If it's already an HttpsError, re-throw it
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
     console.error("Error resending verification code:", error);
     throw new functions.https.HttpsError(
         "internal",

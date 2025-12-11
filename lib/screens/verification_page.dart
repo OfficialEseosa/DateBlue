@@ -279,7 +279,7 @@ class _VerificationPageState extends State<VerificationPage>
     setState(() => _isLoading = true);
 
     try {
-      await _verificationService.verifyPin(uid: widget.user.uid, pin: pin);
+      await _verificationService.verifyPin(pin: pin);
       if (mounted) _navigateToHome();
     } catch (e) {
       debugPrint('Error verifying pin: $e');
@@ -298,10 +298,7 @@ class _VerificationPageState extends State<VerificationPage>
     setState(() => _isLoading = true);
 
     try {
-      await _verificationService.resendVerificationCode(
-        uid: widget.user.uid,
-        campusId: _emailController.text.trim(),
-      );
+      await _verificationService.resendVerificationCode();
       _clearPinBoxes();
       if (mounted) {
         setState(() => _isLoading = false);

@@ -22,6 +22,7 @@ class GsuEmailInput extends StatefulWidget {
 
 class _GsuEmailInputState extends State<GsuEmailInput> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
+  late CurvedAnimation _curvedAnimation;
   late Animation<Offset> _slideAnimation;
 
   @override
@@ -32,7 +33,7 @@ class _GsuEmailInputState extends State<GsuEmailInput> with SingleTickerProvider
       vsync: this,
     );
     
-    final curvedAnimation = CurvedAnimation(
+    _curvedAnimation = CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeInOutCubic,
     );
@@ -40,7 +41,7 @@ class _GsuEmailInputState extends State<GsuEmailInput> with SingleTickerProvider
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0.15, 0), // Start position (right)
       end: Offset.zero, // End position (left)
-    ).animate(curvedAnimation);
+    ).animate(_curvedAnimation);
     
     // Start with animation completed if disabled from the start
     if (!widget.enabled) {
@@ -64,6 +65,7 @@ class _GsuEmailInputState extends State<GsuEmailInput> with SingleTickerProvider
   @override
   void dispose() {
     _animationController.dispose();
+    _curvedAnimation.dispose();
     super.dispose();
   }
 
