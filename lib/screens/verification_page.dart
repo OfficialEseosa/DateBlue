@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/verification_service.dart';
@@ -48,12 +49,30 @@ class _VerificationPageState extends State<VerificationPage>
   late final Animation<double> _formOpacity;
   late final Animation<double> _formSlideUpAnimation;
   late final Animation<double> _pinFadeAnimation;
+  
+  bool _imagePreloaded = false;
+  
+  // Resend cooldown
+  Timer? _resendTimer;
+  int _resendCooldown = 0;
 
   @override
   void initState() {
     super.initState();
     _initAnimations();
     _checkIfAlreadyVerified();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_imagePreloaded) {
+      _imagePreloaded = true;
+      precacheImage(
+        const AssetImage('assets/images/verification_bg.jpg'),
+        context,
+      );
+    }
   }
 
   void _initAnimations() {
@@ -156,6 +175,7 @@ class _VerificationPageState extends State<VerificationPage>
     _formController.dispose();
     _formSlideUpController.dispose();
     _pinFadeController.dispose();
+    _resendTimer?.cancel();
     super.dispose();
   }
 
@@ -177,48 +197,60 @@ class _VerificationPageState extends State<VerificationPage>
   }
 
   Future<void> _sendVerificationEmail() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty) {
-      _showNotification('Please enter your GSU email', isError: true);
+    final campusId = _emailController.text.trim();
+    if (campusId.isEmpty) {
+      _showNotification('Please enter your GSU campus ID', isError: true);
+      return;
+    }
+
+    // Validate campus ID format: alphanumeric, reasonable length
+    final campusIdRegExp = RegExp(r'^[a-zA-Z0-9]{1,20}$');
+    if (!campusIdRegExp.hasMatch(campusId)) {
+      _showNotification('Please enter a valid campus ID (letters and numbers only)', isError: true);
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      final gsuEmail = '$email@student.gsu.edu';
+      final gsuEmail = '$campusId@student.gsu.edu';
       
       // Check if this GSU email is already used by another verified user
+      // We still check but don't reveal the result to the user (privacy)
       final isTaken = await _verificationService.isGsuEmailTaken(
         gsuEmail,
         widget.user.uid,
       );
       
-      if (isTaken) {
-        if (mounted) {
-          _showNotification('This GSU email is already verified with another account.', isError: true);
-          setState(() => _isLoading = false);
-        }
-        return;
+      // Only actually send if not taken, but always show same message
+      if (!isTaken) {
+        await _verificationService.sendVerificationEmail(
+          user: widget.user,
+          campusId: campusId,
+        );
       }
-      
-      await _verificationService.sendVerificationEmail(
-        user: widget.user,
-        campusId: email,
-      );
 
+      // Always show success message to prevent email enumeration
       if (mounted) {
         setState(() {
           _emailSent = true;
           _isLoading = false;
         });
+        _startResendCooldown();
+        _showNotification('If this is a valid GSU email and not in use, you will receive a code shortly.');
         _showPinInputAfterDelay();
       }
     } catch (e) {
       debugPrint('Error sending verification: $e');
+      // Still show neutral message even on error
       if (mounted) {
-        _showNotification('Error sending verification. Please try again.', isError: true);
-        setState(() => _isLoading = false);
+        setState(() {
+          _emailSent = true;
+          _isLoading = false;
+        });
+        _startResendCooldown();
+        _showNotification('If this is a valid GSU email and not in use, you will receive a code shortly.');
+        _showPinInputAfterDelay();
       }
     }
   }
@@ -272,6 +304,8 @@ class _VerificationPageState extends State<VerificationPage>
   }
 
   Future<void> _resendVerificationCode() async {
+    if (_resendCooldown > 0) return;
+    
     setState(() => _isLoading = true);
 
     try {
@@ -283,6 +317,7 @@ class _VerificationPageState extends State<VerificationPage>
       if (mounted) {
         setState(() => _isLoading = false);
         _showNotification('New verification code sent!');
+        _startResendCooldown();
       }
     } catch (e) {
       debugPrint('Error resending code: $e');
@@ -291,6 +326,23 @@ class _VerificationPageState extends State<VerificationPage>
         _showNotification('Error sending code. Please try again.', isError: true);
       }
     }
+  }
+
+  void _startResendCooldown() {
+    setState(() => _resendCooldown = VerificationService.resendCooldownSeconds);
+    _resendTimer?.cancel();
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _resendCooldown--;
+          if (_resendCooldown <= 0) {
+            timer.cancel();
+          }
+        });
+      } else {
+        timer.cancel();
+      }
+    });
   }
 
   void _enableEmailEdit() {
@@ -394,26 +446,30 @@ class _VerificationPageState extends State<VerificationPage>
   Widget _buildAnimatedContent() {
     final screenHeight = MediaQuery.of(context).size.height;
 
-    return AnimatedBuilder(
-      animation: Listenable.merge([
-        _slideUpAnimation,
-        _welcomeOpacity,
-        _welcomeFadeOutOpacity,
-        _dateBlueOpacity,
-        _formOpacity,
-        _formSlideUpAnimation,
-        _pinFadeAnimation,
-      ]),
-      builder: (context, child) {
-        final topPosition = screenHeight * (0.35 - (_slideUpAnimation.value * 0.27));
-
-        return Stack(
-          children: [
-            _buildWelcomeText(topPosition),
-            _buildForm(screenHeight),
-          ],
-        );
-      },
+    return Stack(
+      children: [
+        // Welcome text - only rebuilds for welcome-related animations
+        AnimatedBuilder(
+          animation: Listenable.merge([
+            _slideUpAnimation,
+            _welcomeOpacity,
+            _welcomeFadeOutOpacity,
+            _dateBlueOpacity,
+          ]),
+          builder: (context, child) {
+            final topPosition = screenHeight * (0.35 - (_slideUpAnimation.value * 0.27));
+            return _buildWelcomeText(topPosition);
+          },
+        ),
+        // Form - only rebuilds for form-related animations
+        AnimatedBuilder(
+          animation: Listenable.merge([
+            _formOpacity,
+            _formSlideUpAnimation,
+          ]),
+          builder: (context, child) => _buildForm(screenHeight),
+        ),
+      ],
     );
   }
 
@@ -542,6 +598,8 @@ class _VerificationPageState extends State<VerificationPage>
   }
 
   Widget _buildPinSection() {
+    final canResend = _resendCooldown <= 0 && !_isLoading;
+    
     return FadeTransition(
       opacity: _pinFadeAnimation,
       child: Column(
@@ -550,6 +608,15 @@ class _VerificationPageState extends State<VerificationPage>
           Text(
             'Enter the 4-digit code sent to your email',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Code expires in ${VerificationService.codeExpirationMinutes} minutes',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Colors.white60,
+              fontStyle: FontStyle.italic,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
@@ -562,13 +629,15 @@ class _VerificationPageState extends State<VerificationPage>
           if (_isLoading) const CircularProgressIndicator(color: Colors.white),
           const SizedBox(height: 16),
           TextButton(
-            onPressed: _isLoading ? null : _resendVerificationCode,
-            child: const Text(
-              'Resend Code',
+            onPressed: canResend ? _resendVerificationCode : null,
+            child: Text(
+              _resendCooldown > 0 
+                  ? 'Resend Code in $_resendCooldown s' 
+                  : 'Resend Code',
               style: TextStyle(
-                color: Colors.white,
+                color: canResend ? Colors.white : Colors.white54,
                 fontSize: 16,
-                decoration: TextDecoration.underline,
+                decoration: canResend ? TextDecoration.underline : null,
                 decorationColor: Colors.white,
               ),
             ),

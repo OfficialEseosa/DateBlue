@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class PinInput extends StatelessWidget {
   final List<TextEditingController> controllers;
@@ -37,6 +38,7 @@ class PinInput extends StatelessWidget {
             focusNode: focusNodes[index],
             textAlign: TextAlign.center,
             keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             maxLength: 1,
             style: const TextStyle(
               fontSize: 28,

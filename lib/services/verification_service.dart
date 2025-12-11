@@ -6,6 +6,12 @@ import 'package:google_sign_in/google_sign_in.dart';
 class VerificationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
+  /// Code expiration time in minutes
+  static const int codeExpirationMinutes = 5;
+  
+  /// Rate limit cooldown in seconds
+  static const int resendCooldownSeconds = 60;
+  
   /// Generate a random 4-digit verification code
   String generateVerificationCode() {
     final random = Random();
@@ -91,9 +97,18 @@ class VerificationService {
   }) async {
     final userDoc = await _firestore.collection('users').doc(uid).get();
     final storedCode = userDoc.data()?['verificationCode'];
+    final codeCreatedAt = userDoc.data()?['codeCreatedAt'] as Timestamp?;
 
     if (storedCode == null) {
       throw Exception('No verification code found. Please request a new code.');
+    }
+
+    // Check if code has expired
+    if (codeCreatedAt != null) {
+      final codeAge = DateTime.now().difference(codeCreatedAt.toDate());
+      if (codeAge.inMinutes >= codeExpirationMinutes) {
+        throw Exception('Code expired. Please request a new code.');
+      }
     }
 
     if (pin != storedCode) {

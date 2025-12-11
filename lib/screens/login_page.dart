@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:audio_session/audio_session.dart';
 import 'verification_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -24,17 +23,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _initVideoPlayer() async {
-    final session = await AudioSession.instance;
-    await session.configure(const AudioSessionConfiguration(
-      avAudioSessionCategory: AVAudioSessionCategory.ambient,
-      avAudioSessionMode: AVAudioSessionMode.defaultMode,
-      androidAudioAttributes: AndroidAudioAttributes(
-        contentType: AndroidAudioContentType.movie,
-        usage: AndroidAudioUsage.media,
-      ),
-      androidAudioFocusGainType: AndroidAudioFocusGainType.gainTransientMayDuck,
-    ));
-
     _controller = VideoPlayerController.asset('assets/videos/login_bg.mp4');
     await _controller!.initialize();
     if (mounted) {
