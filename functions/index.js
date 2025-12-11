@@ -125,6 +125,8 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
   const uid = context.auth.uid;
 
   const RESEND_COOLDOWN_SECONDS = 60;
+  const MAX_ATTEMPTS = 3;
+  const LOCKOUT_MINUTES = 15;
 
   try {
     // Get user document to retrieve GSU email
@@ -140,12 +142,28 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
     const userData = userDoc.data();
     const gsuEmail = userData.gsuEmail;
     const lastResendAt = userData.lastResendAt;
+    const failedAttempts = userData.failedVerificationAttempts || 0;
+    const lastFailedAttempt = userData.lastFailedAttempt;
 
     if (!gsuEmail) {
       throw new functions.https.HttpsError(
           "failed-precondition",
           "No GSU email on record.",
       );
+    }
+
+    // Check if user is locked out - prevent resend during lockout
+    if (lastFailedAttempt && failedAttempts >= MAX_ATTEMPTS) {
+      const lockoutAge = Date.now() - lastFailedAttempt.toMillis();
+      const lockoutAgeMinutes = Math.floor(lockoutAge / 60000);
+      
+      if (lockoutAgeMinutes < LOCKOUT_MINUTES) {
+        const remainingMinutes = LOCKOUT_MINUTES - lockoutAgeMinutes;
+        throw new functions.https.HttpsError(
+            "permission-denied",
+            `Account is locked due to too many failed attempts. Try again in ${remainingMinutes} minutes.`,
+        );
+      }
     }
 
     // Check rate limiting
@@ -163,14 +181,28 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
     // Generate new secure code
     const verificationCode = generateSecureCode();
 
-    // Update verification code and reset failed attempts
-    await admin.firestore().collection("users").doc(uid).update({
+    // Update verification code - only reset attempts if lockout has expired
+    const updateData = {
       verificationCode: verificationCode,
       codeCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
       lastResendAt: admin.firestore.FieldValue.serverTimestamp(),
-      failedVerificationAttempts: 0,
-      lastFailedAttempt: admin.firestore.FieldValue.delete(),
-    });
+    };
+
+    // Only reset failed attempts if the lockout period has passed
+    if (lastFailedAttempt) {
+      const lockoutAge = Date.now() - lastFailedAttempt.toMillis();
+      const lockoutAgeMinutes = Math.floor(lockoutAge / 60000);
+      
+      if (lockoutAgeMinutes >= LOCKOUT_MINUTES) {
+        updateData.failedVerificationAttempts = 0;
+        updateData.lastFailedAttempt = admin.firestore.FieldValue.delete();
+      }
+    } else if (failedAttempts === 0) {
+      // No previous failures, safe to ensure clean state
+      updateData.failedVerificationAttempts = 0;
+    }
+
+    await admin.firestore().collection("users").doc(uid).update(updateData);
 
     // Send new verification email
     await admin.firestore().collection("mail").add({
