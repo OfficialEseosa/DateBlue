@@ -41,6 +41,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.2"
+  cloud_firestore:
+    dependency: "direct main"
+    description:
+      name: cloud_firestore
+      sha256: fc1de79a62fe21615e9012f396070e6121838ef0d879475a4ec8320e79378208
+      url: "https://pub.dev"
+    source: hosted
+    version: "6.1.0"
+  cloud_firestore_platform_interface:
+    dependency: transitive
+    description:
+      name: cloud_firestore_platform_interface
+      sha256: "2d2ee96a32ec3dd22fb682295e9bed6336e49a43f056d7841690228adca3ee7d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.0.4"
+  cloud_firestore_web:
+    dependency: transitive
+    description:
+      name: cloud_firestore_web
+      sha256: "28c39f3d050bf669787ef13fa0890df2b4af236de864e2db0cc3897b857066cb"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.1.0"
   collection:
     dependency: transitive
     description:
@@ -172,10 +196,10 @@ packages:
     dependency: "direct main"
     description:
       name: google_fonts
-      sha256: "517b20870220c48752eafa0ba1a797a092fb22df0d89535fd9991e86ee2cdd9c"
+      sha256: ba03d03bcaa2f6cb7bd920e3b5027181db75ab524f8891c8bc3aa603885b8055
       url: "https://pub.dev"
     source: hosted
-    version: "6.3.2"
+    version: "6.3.3"
   google_identity_services_web:
     dependency: transitive
     description:
@@ -196,10 +220,10 @@ packages:
     dependency: transitive
     description:
       name: google_sign_in_android
-      sha256: "13759dc6dbff7501452830995d1a4446e4af172050e16a0091f98fcf607fa2c7"
+      sha256: "5ec98ab35387c68c0050495bb211bd88375873723a80fae7c2e9266ea0bdd8bb"
       url: "https://pub.dev"
     source: hosted
-    version: "7.2.6"
+    version: "7.2.7"
   google_sign_in_ios:
     dependency: transitive
     description:
@@ -457,18 +481,18 @@ packages:
     dependency: transitive
     description:
       name: video_player_android
-      sha256: "3f7ef3fb7b29f510e58f4d56b6ffbc3463b1071f2cf56e10f8d25f5b991ed85b"
+      sha256: d74b66f283afff135d5be0ceccca2ca74dff7df1e9b1eaca6bd4699875d3ae60
       url: "https://pub.dev"
     source: hosted
-    version: "2.8.21"
+    version: "2.8.22"
   video_player_avfoundation:
     dependency: transitive
     description:
       name: video_player_avfoundation
-      sha256: "6bced1739cf1f96f03058118adb8ac0dd6f96aa1a1a6e526424ab92fd2a6a77d"
+      sha256: e4d33b79a064498c6eb3a6a492b6a5012573d4943c28d566caf1a6c0840fe78d
       url: "https://pub.dev"
     source: hosted
-    version: "2.8.7"
+    version: "2.8.8"
   video_player_platform_interface:
     dependency: transitive
     description:

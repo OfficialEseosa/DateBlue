@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'home_page.dart';
+import 'verification_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,27 +12,32 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  late VideoPlayerController _controller;
+  VideoPlayerController? _controller;
   bool _isInitialized = false;
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.asset('assets/videos/login_bg.mp4')
-      ..initialize().then((_) {
-        setState(() {
-          _isInitialized = true;
-        });
-        _controller.setLooping(true);
-        _controller.play();
-        _controller.setVolume(0.0);
+    _initVideoPlayer();
+  }
+
+  Future<void> _initVideoPlayer() async {
+    _controller = VideoPlayerController.asset('assets/videos/login_bg.mp4');
+    await _controller!.initialize();
+    if (mounted) {
+      setState(() {
+        _isInitialized = true;
       });
+      _controller!.setLooping(true);
+      _controller!.setVolume(0.0);
+      _controller!.play();
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -64,7 +69,7 @@ class _LoginPageState extends State<LoginPage> {
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => HomePage(user: userCredential.user!),
+              builder: (context) => VerificationPage(user: userCredential.user!),
             ),
           );
         }
@@ -85,16 +90,16 @@ class _LoginPageState extends State<LoginPage> {
       body: Stack(
         children: [
           // Background Video
-          if (_isInitialized)
+          if (_isInitialized && _controller != null)
             Transform.scale(
               scale: 1.1,
               child: SizedBox.expand(
                 child: FittedBox(
                   fit: BoxFit.cover,
                   child: SizedBox(
-                    width: _controller.value.size.width,
-                    height: _controller.value.size.height,
-                    child: VideoPlayer(_controller),
+                    width: _controller!.value.size.width,
+                    height: _controller!.value.size.height,
+                    child: VideoPlayer(_controller!),
                   ),
                 ),
               ),
