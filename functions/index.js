@@ -44,6 +44,22 @@ function checkLockoutStatus(lastFailedAttempt, failedAttempts) {
 }
 
 /**
+ * Reset lockout state if the lockout period has expired
+ * @param {string} uid - User ID
+ * @param {Object} lockoutStatus - Result from checkLockoutStatus
+ * @param {number} failedAttempts - Number of failed verification attempts
+ * @return {Promise<void>}
+ */
+async function resetLockoutIfExpired(uid, lockoutStatus, failedAttempts) {
+  if (!lockoutStatus.isLockedOut && failedAttempts >= MAX_ATTEMPTS) {
+    await admin.firestore().collection("users").doc(uid).update({
+      failedVerificationAttempts: 0,
+      lastFailedAttempt: admin.firestore.FieldValue.delete(),
+    });
+  }
+}
+
+/**
  * Send verification email with code
  * Callable function that generates a secure code and sends it via email
  */
@@ -187,13 +203,8 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
       );
     }
 
-    // Reset lockout if the period has passed and there were failed attempts
-    if (!lockoutStatus.isLockedOut && failedAttempts >= MAX_ATTEMPTS) {
-      await admin.firestore().collection("users").doc(uid).update({
-        failedVerificationAttempts: 0,
-        lastFailedAttempt: admin.firestore.FieldValue.delete(),
-      });
-    }
+    // Reset lockout if the period has passed
+    await resetLockoutIfExpired(uid, lockoutStatus, failedAttempts);
 
     // Check rate limiting
     if (lastResendAt) {
@@ -288,13 +299,10 @@ exports.verifyPin = functions.https.onCall(async (data, context) => {
           "permission-denied",
           `Too many failed attempts. Try again in ${lockoutStatus.remainingMinutes} minutes.`,
       );
-    } else if (failedAttempts >= MAX_ATTEMPTS) {
-      // Reset lockout since the period has passed
-      await admin.firestore().collection("users").doc(uid).update({
-        failedVerificationAttempts: 0,
-        lastFailedAttempt: admin.firestore.FieldValue.delete(),
-      });
     }
+
+    // Reset lockout if the period has passed
+    await resetLockoutIfExpired(uid, lockoutStatus, failedAttempts);
 
     // Check if code exists
     if (!storedCode) {
