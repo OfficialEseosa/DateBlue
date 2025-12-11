@@ -3,6 +3,12 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
+// Security constants for verification attempts
+const MAX_ATTEMPTS = 3;
+const LOCKOUT_MINUTES = 15;
+const RESEND_COOLDOWN_SECONDS = 60;
+const CODE_EXPIRATION_MINUTES = 5;
+
 /**
  * Generate a cryptographically secure 4-digit verification code
  * @return {string} 4-digit code
@@ -11,6 +17,30 @@ function generateSecureCode() {
   const crypto = require("crypto");
   const randomValue = crypto.randomInt(1000, 10000);
   return randomValue.toString();
+}
+
+/**
+ * Check if user is currently locked out due to failed verification attempts
+ * @param {Object} lastFailedAttempt - Firestore timestamp of last failed attempt
+ * @param {number} failedAttempts - Number of failed verification attempts
+ * @return {Object} {isLockedOut: boolean, remainingMinutes: number}
+ */
+function checkLockoutStatus(lastFailedAttempt, failedAttempts) {
+  if (!lastFailedAttempt || failedAttempts < MAX_ATTEMPTS) {
+    return {isLockedOut: false, remainingMinutes: 0};
+  }
+
+  const lockoutAge = Date.now() - lastFailedAttempt.toMillis();
+  const lockoutAgeMinutes = Math.floor(lockoutAge / 60000);
+  
+  if (lockoutAgeMinutes < LOCKOUT_MINUTES) {
+    return {
+      isLockedOut: true,
+      remainingMinutes: LOCKOUT_MINUTES - lockoutAgeMinutes,
+    };
+  }
+
+  return {isLockedOut: false, remainingMinutes: 0};
 }
 
 /**
@@ -124,10 +154,6 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
 
   const uid = context.auth.uid;
 
-  const RESEND_COOLDOWN_SECONDS = 60;
-  const MAX_ATTEMPTS = 3;
-  const LOCKOUT_MINUTES = 15;
-
   try {
     // Get user document to retrieve GSU email
     const userDoc = await admin.firestore().collection("users").doc(uid).get();
@@ -153,17 +179,12 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
     }
 
     // Check if user is locked out - prevent resend during lockout
-    if (lastFailedAttempt && failedAttempts >= MAX_ATTEMPTS) {
-      const lockoutAge = Date.now() - lastFailedAttempt.toMillis();
-      const lockoutAgeMinutes = Math.floor(lockoutAge / 60000);
-      
-      if (lockoutAgeMinutes < LOCKOUT_MINUTES) {
-        const remainingMinutes = LOCKOUT_MINUTES - lockoutAgeMinutes;
-        throw new functions.https.HttpsError(
-            "permission-denied",
-            `Account is locked due to too many failed attempts. Try again in ${remainingMinutes} minutes.`,
-        );
-      }
+    const lockoutStatus = checkLockoutStatus(lastFailedAttempt, failedAttempts);
+    if (lockoutStatus.isLockedOut) {
+      throw new functions.https.HttpsError(
+          "permission-denied",
+          `Account is locked due to too many failed attempts. Try again in ${lockoutStatus.remainingMinutes} minutes.`,
+      );
     }
 
     // Check rate limiting
@@ -189,14 +210,9 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
     };
 
     // Only reset failed attempts if the lockout period has passed
-    if (lastFailedAttempt) {
-      const lockoutAge = Date.now() - lastFailedAttempt.toMillis();
-      const lockoutAgeMinutes = Math.floor(lockoutAge / 60000);
-      
-      if (lockoutAgeMinutes >= LOCKOUT_MINUTES) {
-        updateData.failedVerificationAttempts = 0;
-        updateData.lastFailedAttempt = admin.firestore.FieldValue.delete();
-      }
+    if (!lockoutStatus.isLockedOut && failedAttempts > 0) {
+      updateData.failedVerificationAttempts = 0;
+      updateData.lastFailedAttempt = admin.firestore.FieldValue.delete();
     } else if (failedAttempts === 0) {
       // No previous failures, safe to ensure clean state
       updateData.failedVerificationAttempts = 0;
@@ -252,10 +268,6 @@ exports.verifyPin = functions.https.onCall(async (data, context) => {
     );
   }
 
-  const MAX_ATTEMPTS = 3;
-  const LOCKOUT_MINUTES = 15;
-  const CODE_EXPIRATION_MINUTES = 5;
-
   try {
     const userDoc = await admin.firestore().collection("users").doc(uid).get();
     
@@ -273,23 +285,18 @@ exports.verifyPin = functions.https.onCall(async (data, context) => {
     const lastFailedAttempt = userData.lastFailedAttempt;
 
     // Check if user is locked out
-    if (lastFailedAttempt && failedAttempts >= MAX_ATTEMPTS) {
-      const lockoutAge = Date.now() - lastFailedAttempt.toMillis();
-      const lockoutAgeMinutes = Math.floor(lockoutAge / 60000);
-      
-      if (lockoutAgeMinutes < LOCKOUT_MINUTES) {
-        const remainingMinutes = LOCKOUT_MINUTES - lockoutAgeMinutes;
-        throw new functions.https.HttpsError(
-            "permission-denied",
-            `Too many failed attempts. Try again in ${remainingMinutes} minutes.`,
-        );
-      } else {
-        // Reset lockout
-        await admin.firestore().collection("users").doc(uid).update({
-          failedVerificationAttempts: 0,
-          lastFailedAttempt: admin.firestore.FieldValue.delete(),
-        });
-      }
+    const lockoutStatus = checkLockoutStatus(lastFailedAttempt, failedAttempts);
+    if (lockoutStatus.isLockedOut) {
+      throw new functions.https.HttpsError(
+          "permission-denied",
+          `Too many failed attempts. Try again in ${lockoutStatus.remainingMinutes} minutes.`,
+      );
+    } else if (failedAttempts >= MAX_ATTEMPTS) {
+      // Reset lockout since the period has passed
+      await admin.firestore().collection("users").doc(uid).update({
+        failedVerificationAttempts: 0,
+        lastFailedAttempt: admin.firestore.FieldValue.delete(),
+      });
     }
 
     // Check if code exists
