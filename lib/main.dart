@@ -13,6 +13,14 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await GoogleSignIn.instance.initialize();
+
+  try {
+    await LoginPage.preloadVideo();
+  } catch (e, stack) {
+    debugPrint('Failed to preload video: $e');
+    debugPrint(stack.toString());
+  }
+  
   runApp(const MyApp());
 }
 
