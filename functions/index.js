@@ -187,6 +187,14 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
       );
     }
 
+    // Reset lockout if the period has passed and there were failed attempts
+    if (!lockoutStatus.isLockedOut && failedAttempts >= MAX_ATTEMPTS) {
+      await admin.firestore().collection("users").doc(uid).update({
+        failedVerificationAttempts: 0,
+        lastFailedAttempt: admin.firestore.FieldValue.delete(),
+      });
+    }
+
     // Check rate limiting
     if (lastResendAt) {
       const timeSinceLastResend = (Date.now() - lastResendAt.toMillis()) / 1000;
@@ -202,20 +210,12 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
     // Generate new secure code
     const verificationCode = generateSecureCode();
 
-    // Update verification code - only reset attempts if lockout has expired
-    const updateData = {
+    // Update verification code
+    await admin.firestore().collection("users").doc(uid).update({
       verificationCode: verificationCode,
       codeCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
       lastResendAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-
-    // Only reset failed attempts if the lockout period has passed
-    if (!lockoutStatus.isLockedOut && failedAttempts > 0) {
-      updateData.failedVerificationAttempts = 0;
-      updateData.lastFailedAttempt = admin.firestore.FieldValue.delete();
-    }
-
-    await admin.firestore().collection("users").doc(uid).update(updateData);
+    });
 
     // Send new verification email
     await admin.firestore().collection("mail").add({
