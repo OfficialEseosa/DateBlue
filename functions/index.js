@@ -8,6 +8,7 @@ const MAX_ATTEMPTS = 3;
 const LOCKOUT_MINUTES = 15;
 const RESEND_COOLDOWN_SECONDS = 60;
 const CODE_EXPIRATION_MINUTES = 5;
+const MILLISECONDS_PER_MINUTE = 60000;
 
 /**
  * Generate a cryptographically secure 4-digit verification code
@@ -31,7 +32,7 @@ function checkLockoutStatus(lastFailedAttempt, failedAttempts) {
   }
 
   const lockoutAge = Date.now() - lastFailedAttempt.toMillis();
-  const lockoutAgeMinutes = Math.floor(lockoutAge / 60000);
+  const lockoutAgeMinutes = Math.floor(lockoutAge / MILLISECONDS_PER_MINUTE);
   
   if (lockoutAgeMinutes < LOCKOUT_MINUTES) {
     return {
@@ -315,7 +316,7 @@ exports.verifyPin = functions.https.onCall(async (data, context) => {
     // Check if code has expired
     if (codeCreatedAt) {
       const codeAge = Date.now() - codeCreatedAt.toMillis();
-      const codeAgeMinutes = Math.floor(codeAge / 60000);
+      const codeAgeMinutes = Math.floor(codeAge / MILLISECONDS_PER_MINUTE);
       
       if (codeAgeMinutes >= CODE_EXPIRATION_MINUTES) {
         throw new functions.https.HttpsError(
