@@ -7,6 +7,20 @@ import 'verification_page.dart';
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
+  // Static controller that persists across widget rebuilds
+  static VideoPlayerController? _preloadedController;
+  static bool _isPreloaded = false;
+
+  // Preload video before navigating to login page
+  static Future<void> preloadVideo() async {
+    if (_isPreloaded) return;
+    _preloadedController = VideoPlayerController.asset('assets/videos/login_bg.mp4');
+    await _preloadedController!.initialize();
+    _preloadedController!.setLooping(true);
+    _preloadedController!.setVolume(0.0);
+    _isPreloaded = true;
+  }
+
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -23,21 +37,34 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _initVideoPlayer() async {
-    _controller = VideoPlayerController.asset('assets/videos/login_bg.mp4');
-    await _controller!.initialize();
-    if (mounted) {
+    if (LoginPage._isPreloaded && LoginPage._preloadedController != null) {
+      // Use the preloaded controller
+      _controller = LoginPage._preloadedController;
       setState(() {
         _isInitialized = true;
       });
-      _controller!.setLooping(true);
-      _controller!.setVolume(0.0);
       _controller!.play();
+    } else {
+      // Fallback to loading if preload didn't happen
+      _controller = VideoPlayerController.asset('assets/videos/login_bg.mp4');
+      await _controller!.initialize();
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+        _controller!.setLooping(true);
+        _controller!.setVolume(0.0);
+        _controller!.play();
+      }
     }
   }
 
   @override
   void dispose() {
-    _controller?.dispose();
+    // Don't dispose the preloaded controller, only dispose if it's a fallback
+    if (_controller != null && _controller != LoginPage._preloadedController) {
+      _controller?.dispose();
+    }
     super.dispose();
   }
 

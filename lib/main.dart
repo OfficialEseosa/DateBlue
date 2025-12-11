@@ -13,6 +13,9 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await GoogleSignIn.instance.initialize();
+
+  await LoginPage.preloadVideo();
+  
   runApp(const MyApp());
 }
 

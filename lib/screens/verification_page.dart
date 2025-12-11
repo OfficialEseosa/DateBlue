@@ -213,22 +213,11 @@ class _VerificationPageState extends State<VerificationPage>
     setState(() => _isLoading = true);
 
     try {
-      final gsuEmail = '$campusId@student.gsu.edu';
-      
-      // Check if this GSU email is already used by another verified user
-      // We still check but don't reveal the result to the user (privacy)
-      final isTaken = await _verificationService.isGsuEmailTaken(
-        gsuEmail,
-        widget.user.uid,
+      // Cloud Function handles email checking and sending
+      await _verificationService.sendVerificationEmail(
+        user: widget.user,
+        campusId: campusId,
       );
-      
-      // Only actually send if not taken, but always show same message
-      if (!isTaken) {
-        await _verificationService.sendVerificationEmail(
-          user: widget.user,
-          campusId: campusId,
-        );
-      }
 
       // Always show success message to prevent email enumeration
       if (mounted) {
@@ -406,23 +395,22 @@ class _VerificationPageState extends State<VerificationPage>
           ),
         ),
         // Logout button - IGNORES keyboard, stays at absolute screen bottom
-        if (!_showPinInput)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 40,
-            child: IgnorePointer(
-              ignoring: false,
-              child: MediaQuery.removeViewInsets(
-                context: context,
-                removeBottom: true,
-                child: FadeTransition(
-                  opacity: _formOpacity,
-                  child: Center(child: _buildLogoutButton()),
-                ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 40,
+          child: IgnorePointer(
+            ignoring: false,
+            child: MediaQuery.removeViewInsets(
+              context: context,
+              removeBottom: true,
+              child: FadeTransition(
+                opacity: _formOpacity,
+                child: Center(child: _buildLogoutButton()),
               ),
             ),
           ),
+        ),
       ],
     );
   }
