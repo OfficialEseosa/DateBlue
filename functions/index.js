@@ -213,9 +213,6 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
     if (!lockoutStatus.isLockedOut && failedAttempts > 0) {
       updateData.failedVerificationAttempts = 0;
       updateData.lastFailedAttempt = admin.firestore.FieldValue.delete();
-    } else if (failedAttempts === 0) {
-      // No previous failures, safe to ensure clean state
-      updateData.failedVerificationAttempts = 0;
     }
 
     await admin.firestore().collection("users").doc(uid).update(updateData);
