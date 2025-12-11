@@ -27,7 +27,6 @@ class VerificationService {
 
   /// Send verification email via Cloud Function (secure)
   Future<void> sendVerificationEmail({
-    required User user,
     required String campusId,
   }) async {
     try {
