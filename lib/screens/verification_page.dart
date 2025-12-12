@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/verification_service.dart';
 import '../widgets/pin_input.dart';
 import '../widgets/gsu_email_input.dart';
@@ -8,6 +9,7 @@ import '../widgets/top_notification.dart';
 import '../theme/app_colors.dart';
 import 'login_page.dart';
 import 'home_page.dart';
+import 'onboarding/onboarding_page.dart';
 
 class VerificationPage extends StatefulWidget {
   final User user;
@@ -215,7 +217,6 @@ class _VerificationPageState extends State<VerificationPage>
     try {
       // Cloud Function handles email checking and sending
       await _verificationService.sendVerificationEmail(
-        user: widget.user,
         campusId: campusId,
       );
 
@@ -357,10 +358,39 @@ class _VerificationPageState extends State<VerificationPage>
     }
   }
 
-  void _navigateToHome() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => HomePage(user: widget.user)),
-    );
+  Future<void> _navigateToHome() async {
+    try {
+      // Check if user has completed onboarding
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.user.uid)
+          .get();
+      
+      final data = userDoc.data();
+      final onboardingStep = data?['onboardingStep'] as int?;
+      
+      if (mounted) {
+        // If onboarding not completed (step 16 is the final step), go to onboarding
+        if (onboardingStep == null || onboardingStep < 16) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => OnboardingPage(user: widget.user)),
+          );
+        } else {
+          // Onboarding complete, go to home
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => HomePage(user: widget.user)),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking onboarding status: $e');
+      // On error, default to home page
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => HomePage(user: widget.user)),
+        );
+      }
+    }
   }
 
   void _showNotification(String message, {bool isError = false}) {
