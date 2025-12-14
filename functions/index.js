@@ -3,6 +3,13 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
+// Security constants for verification attempts
+const MAX_ATTEMPTS = 3;
+const LOCKOUT_MINUTES = 15;
+const RESEND_COOLDOWN_SECONDS = 60;
+const CODE_EXPIRATION_MINUTES = 5;
+const MILLISECONDS_PER_MINUTE = 60000;
+
 /**
  * Generate a cryptographically secure 4-digit verification code
  * @return {string} 4-digit code
@@ -11,6 +18,46 @@ function generateSecureCode() {
   const crypto = require("crypto");
   const randomValue = crypto.randomInt(1000, 10000);
   return randomValue.toString();
+}
+
+/**
+ * Check if user is currently locked out due to failed verification attempts
+ * @param {Object} lastFailedAttempt - Firestore timestamp of last failed attempt
+ * @param {number} failedAttempts - Number of failed verification attempts
+ * @return {Object} {isLockedOut: boolean, remainingMinutes: number}
+ */
+function checkLockoutStatus(lastFailedAttempt, failedAttempts) {
+  if (!lastFailedAttempt || failedAttempts < MAX_ATTEMPTS) {
+    return {isLockedOut: false, remainingMinutes: 0};
+  }
+
+  const lockoutAge = Date.now() - lastFailedAttempt.toMillis();
+  const lockoutAgeMinutes = Math.floor(lockoutAge / MILLISECONDS_PER_MINUTE);
+  
+  if (lockoutAgeMinutes < LOCKOUT_MINUTES) {
+    return {
+      isLockedOut: true,
+      remainingMinutes: LOCKOUT_MINUTES - lockoutAgeMinutes,
+    };
+  }
+
+  return {isLockedOut: false, remainingMinutes: 0};
+}
+
+/**
+ * Reset lockout state if the lockout period has expired
+ * @param {string} uid - User ID
+ * @param {Object} lockoutStatus - Result from checkLockoutStatus
+ * @param {number} failedAttempts - Number of failed verification attempts
+ * @return {Promise<void>}
+ */
+async function resetLockoutIfExpired(uid, lockoutStatus, failedAttempts) {
+  if (!lockoutStatus.isLockedOut && failedAttempts >= MAX_ATTEMPTS) {
+    await admin.firestore().collection("users").doc(uid).update({
+      failedVerificationAttempts: 0,
+      lastFailedAttempt: admin.firestore.FieldValue.delete(),
+    });
+  }
 }
 
 /**
@@ -124,8 +171,6 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
 
   const uid = context.auth.uid;
 
-  const RESEND_COOLDOWN_SECONDS = 60;
-
   try {
     // Get user document to retrieve GSU email
     const userDoc = await admin.firestore().collection("users").doc(uid).get();
@@ -140,6 +185,8 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
     const userData = userDoc.data();
     const gsuEmail = userData.gsuEmail;
     const lastResendAt = userData.lastResendAt;
+    const failedAttempts = userData.failedVerificationAttempts || 0;
+    const lastFailedAttempt = userData.lastFailedAttempt;
 
     if (!gsuEmail) {
       throw new functions.https.HttpsError(
@@ -147,6 +194,18 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
           "No GSU email on record.",
       );
     }
+
+    // Check if user is locked out - prevent resend during lockout
+    const lockoutStatus = checkLockoutStatus(lastFailedAttempt, failedAttempts);
+    if (lockoutStatus.isLockedOut) {
+      throw new functions.https.HttpsError(
+          "permission-denied",
+          `Account is locked due to too many failed attempts. Try again in ${lockoutStatus.remainingMinutes} minutes.`,
+      );
+    }
+
+    // Reset lockout if the period has passed
+    await resetLockoutIfExpired(uid, lockoutStatus, failedAttempts);
 
     // Check rate limiting
     if (lastResendAt) {
@@ -163,13 +222,11 @@ exports.resendVerificationCode = functions.https.onCall(async (data, context) =>
     // Generate new secure code
     const verificationCode = generateSecureCode();
 
-    // Update verification code and reset failed attempts
+    // Update verification code
     await admin.firestore().collection("users").doc(uid).update({
       verificationCode: verificationCode,
       codeCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
       lastResendAt: admin.firestore.FieldValue.serverTimestamp(),
-      failedVerificationAttempts: 0,
-      lastFailedAttempt: admin.firestore.FieldValue.delete(),
     });
 
     // Send new verification email
@@ -220,10 +277,6 @@ exports.verifyPin = functions.https.onCall(async (data, context) => {
     );
   }
 
-  const MAX_ATTEMPTS = 3;
-  const LOCKOUT_MINUTES = 15;
-  const CODE_EXPIRATION_MINUTES = 5;
-
   try {
     const userDoc = await admin.firestore().collection("users").doc(uid).get();
     
@@ -241,24 +294,16 @@ exports.verifyPin = functions.https.onCall(async (data, context) => {
     const lastFailedAttempt = userData.lastFailedAttempt;
 
     // Check if user is locked out
-    if (lastFailedAttempt && failedAttempts >= MAX_ATTEMPTS) {
-      const lockoutAge = Date.now() - lastFailedAttempt.toMillis();
-      const lockoutAgeMinutes = Math.floor(lockoutAge / 60000);
-      
-      if (lockoutAgeMinutes < LOCKOUT_MINUTES) {
-        const remainingMinutes = LOCKOUT_MINUTES - lockoutAgeMinutes;
-        throw new functions.https.HttpsError(
-            "permission-denied",
-            `Too many failed attempts. Try again in ${remainingMinutes} minutes.`,
-        );
-      } else {
-        // Reset lockout
-        await admin.firestore().collection("users").doc(uid).update({
-          failedVerificationAttempts: 0,
-          lastFailedAttempt: admin.firestore.FieldValue.delete(),
-        });
-      }
+    const lockoutStatus = checkLockoutStatus(lastFailedAttempt, failedAttempts);
+    if (lockoutStatus.isLockedOut) {
+      throw new functions.https.HttpsError(
+          "permission-denied",
+          `Too many failed attempts. Try again in ${lockoutStatus.remainingMinutes} minutes.`,
+      );
     }
+
+    // Reset lockout if the period has passed
+    await resetLockoutIfExpired(uid, lockoutStatus, failedAttempts);
 
     // Check if code exists
     if (!storedCode) {
@@ -271,7 +316,7 @@ exports.verifyPin = functions.https.onCall(async (data, context) => {
     // Check if code has expired
     if (codeCreatedAt) {
       const codeAge = Date.now() - codeCreatedAt.toMillis();
-      const codeAgeMinutes = Math.floor(codeAge / 60000);
+      const codeAgeMinutes = Math.floor(codeAge / MILLISECONDS_PER_MINUTE);
       
       if (codeAgeMinutes >= CODE_EXPIRATION_MINUTES) {
         throw new functions.https.HttpsError(
