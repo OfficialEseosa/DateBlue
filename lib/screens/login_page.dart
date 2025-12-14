@@ -153,7 +153,7 @@ class _LoginPageState extends State<LoginPage> {
           }
         }
       } else {
-        // Mobile/Desktop platforms: Use google_sign_in package v7.x
+        // Mobile platforms (Android/iOS): Use google_sign_in package v7.x
         final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
         if (googleUser == null) return; // User canceled the sign-in
 
