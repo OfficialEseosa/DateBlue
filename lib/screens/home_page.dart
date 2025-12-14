@@ -147,11 +147,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildBottomNavBar() {
-    final String? mainPhotoUrl = _userData?['mediaUrls'] != null &&
-            (_userData!['mediaUrls'] as List).isNotEmpty
-        ? (_userData!['mediaUrls'] as List)[0]
-        : null;
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -172,19 +167,16 @@ class _HomePageState extends State<HomePage> {
               _buildNavItem(
                 icon: Icons.explore,
                 index: 0,
-                label: 'Explore',
               ),
               _buildNavItem(
                 icon: Icons.favorite,
                 index: 1,
-                label: 'Likes',
               ),
               _buildNavItem(
                 icon: Icons.chat_bubble,
                 index: 2,
-                label: 'Matches',
               ),
-              _buildProfileNavItem(mainPhotoUrl),
+              _buildProfileNavItem(),
             ],
           ),
         ),
@@ -195,7 +187,6 @@ class _HomePageState extends State<HomePage> {
   Widget _buildNavItem({
     required IconData icon,
     required int index,
-    required String label,
   }) {
     final isSelected = _currentIndex == index;
     return InkWell(
@@ -211,7 +202,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildProfileNavItem(String? photoUrl) {
+  Widget _buildProfileNavItem() {
     final isSelected = _currentIndex == 3;
     return InkWell(
       onTap: () => setState(() => _currentIndex = 3),
