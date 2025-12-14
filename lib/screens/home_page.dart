@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'login_page.dart';
+import 'home/discover_page.dart';
+import 'home/likes_page.dart';
+import 'home/matches_page.dart';
+import 'home/profile_page.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -16,6 +18,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
+  int _currentIndex = 0;
 
   @override
   void initState() {
@@ -59,233 +62,167 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  int _calculateAge(DateTime birthDate) {
-    final today = DateTime.now();
-    int age = today.year - birthDate.year;
-    if (today.month < birthDate.month ||
-        (today.month == birthDate.month && today.day < birthDate.day)) {
-      age--;
-    }
-    return age;
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Color(0xFF97CAEB),
         body: Center(
           child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0039A6)),
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
           ),
         ),
       );
     }
 
-    final String firstName = _userData?['firstName'] ?? 'User';
-    final String campus = _userData?['campus'] ?? 'GSU';
-    final DateTime? birthday = _userData?['birthday'] != null
-        ? (_userData!['birthday'] as Timestamp).toDate()
-        : null;
-    final int age = birthday != null ? _calculateAge(birthday) : 0;
+    return Scaffold(
+      backgroundColor: const Color(0xFF97CAEB),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(50),
+        child: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          flexibleSpace: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/images/GSU_Auburn-Ave01.jpg',
+                fit: BoxFit.cover,
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      const Color(0xFF97CAEB).withOpacity(0.7),
+                      const Color(0xFF97CAEB).withOpacity(0.7),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          title: Padding(
+            padding: const EdgeInsets.only(top: 20),
+            child: RichText(
+              text: const TextSpan(
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                children: [
+                  TextSpan(
+                    text: 'Date',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  TextSpan(
+                    text: 'Blue',
+                    style: TextStyle(color: Color(0xFF0039A6)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      body: _buildCurrentPage(),
+      bottomNavigationBar: _buildBottomNavBar(),
+    );
+  }
+
+  Widget _buildCurrentPage() {
+    switch (_currentIndex) {
+      case 0:
+        return DiscoverPage(user: widget.user, userData: _userData);
+      case 1:
+        return LikesPage(user: widget.user, userData: _userData);
+      case 2:
+        return MatchesPage(user: widget.user, userData: _userData);
+      case 3:
+        return ProfilePage(user: widget.user, userData: _userData);
+      default:
+        return DiscoverPage(user: widget.user, userData: _userData);
+    }
+  }
+
+  Widget _buildBottomNavBar() {
     final String? mainPhotoUrl = _userData?['mediaUrls'] != null &&
             (_userData!['mediaUrls'] as List).isNotEmpty
         ? (_userData!['mediaUrls'] as List)[0]
         : null;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'DateBlue',
-          style: TextStyle(
-            color: Color(0xFF0039A6),
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Color(0xFF0039A6)),
-            onPressed: () async {
-              await GoogleSignIn.instance.signOut();
-              await FirebaseAuth.instance.signOut();
-              if (context.mounted) {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
-                );
-              }
-            },
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
           ),
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Your Profile',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0039A6),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                
-                // Profile Card
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Stack(
-                      children: [
-                        // Main Photo
-                        AspectRatio(
-                          aspectRatio: 9 / 16,
-                          child: mainPhotoUrl != null
-                              ? Image.network(
-                                  mainPhotoUrl,
-                                  fit: BoxFit.cover,
-                                  cacheWidth: 1080,
-                                  cacheHeight: 1920,
-                                  loadingBuilder: (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return Container(
-                                      color: Colors.grey[300],
-                                      child: Center(
-                                        child: CircularProgressIndicator(
-                                          value: loadingProgress.expectedTotalBytes != null
-                                              ? loadingProgress.cumulativeBytesLoaded /
-                                                  loadingProgress.expectedTotalBytes!
-                                              : null,
-                                          valueColor: const AlwaysStoppedAnimation<Color>(
-                                            Color(0xFF0039A6),
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Container(
-                                      color: Colors.grey[300],
-                                      child: const Icon(
-                                        Icons.person,
-                                        size: 100,
-                                        color: Colors.grey,
-                                      ),
-                                    );
-                                  },
-                                )
-                              : Container(
-                                  color: Colors.grey[300],
-                                  child: const Icon(
-                                    Icons.person,
-                                    size: 100,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                        ),
-                      
-                      // Gradient overlay
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withOpacity(0.8),
-                              ],
-                            ),
-                          ),
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    firstName,
-                                    style: const TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  if (age > 0) ...[
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      age.toString(),
-                                      style: const TextStyle(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.w400,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.school,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    campus,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(
+                icon: Icons.explore,
+                index: 0,
+                label: 'Explore',
               ),
-              
-              const SizedBox(height: 20),
-              
-              const Text(
-                'Profile complete! 🎉',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.green,
-                  fontWeight: FontWeight.w600,
-                ),
+              _buildNavItem(
+                icon: Icons.favorite,
+                index: 1,
+                label: 'Likes',
               ),
+              _buildNavItem(
+                icon: Icons.chat_bubble,
+                index: 2,
+                label: 'Matches',
+              ),
+              _buildProfileNavItem(mainPhotoUrl),
             ],
           ),
         ),
       ),
-    )
-  );
-}
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required int index,
+    required String label,
+  }) {
+    final isSelected = _currentIndex == index;
+    return InkWell(
+      onTap: () => setState(() => _currentIndex = index),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        child: Icon(
+          icon,
+          color: isSelected ? const Color(0xFF0039A6) : Colors.grey,
+          size: 28,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileNavItem(String? photoUrl) {
+    final isSelected = _currentIndex == 3;
+    return InkWell(
+      onTap: () => setState(() => _currentIndex = 3),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        child: Icon(
+          Icons.person,
+          color: isSelected ? const Color(0xFF0039A6) : Colors.grey,
+          size: 28,
+        ),
+      ),
+    );
+  }
 }

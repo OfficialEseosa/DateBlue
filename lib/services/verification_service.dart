@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -81,7 +83,9 @@ class VerificationService {
 
   /// Logout user
   Future<void> logout() async {
-    await GoogleSignIn.instance.signOut();
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      await GoogleSignIn.instance.signOut();
+    }
     await FirebaseAuth.instance.signOut();
   }
 }
