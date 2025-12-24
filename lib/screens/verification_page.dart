@@ -371,7 +371,7 @@ class _VerificationPageState extends State<VerificationPage>
       
       if (mounted) {
         // If onboarding not completed (step 16 is the final step), go to onboarding
-        if (onboardingStep == null || onboardingStep < 16) {
+        if (onboardingStep == null || onboardingStep < 17) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => OnboardingPage(user: widget.user)),
           );
@@ -452,7 +452,7 @@ class _VerificationPageState extends State<VerificationPage>
           ),
         ),
         Positioned.fill(
-          child: Container(color: Colors.black.withOpacity(0.4)),
+          child: Container(color: Colors.black.withValues(alpha: 0.4)),
         ),
       ],
     );

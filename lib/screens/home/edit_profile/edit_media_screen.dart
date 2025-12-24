@@ -89,7 +89,7 @@ class _EditMediaScreenState extends State<EditMediaScreen> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0039A6).withOpacity(0.1),
+                  color: const Color(0xFF0039A6).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -107,7 +107,7 @@ class _EditMediaScreenState extends State<EditMediaScreen> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0039A6).withOpacity(0.1),
+                  color: const Color(0xFF0039A6).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -217,7 +217,7 @@ class _EditMediaScreenState extends State<EditMediaScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0039A6).withOpacity(0.1),
+                    color: const Color(0xFF0039A6).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -236,7 +236,7 @@ class _EditMediaScreenState extends State<EditMediaScreen> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -412,7 +412,8 @@ class _EditMediaScreenState extends State<EditMediaScreen> {
                         ),
                       ),
                       child: DragTarget<int>(
-                        onAccept: (fromIndex) {
+                        onAcceptWithDetails: (details) {
+                          final fromIndex = details.data;
                           setState(() {
                             final temp = _mediaSlots[fromIndex];
                             _mediaSlots[fromIndex] = _mediaSlots[index];

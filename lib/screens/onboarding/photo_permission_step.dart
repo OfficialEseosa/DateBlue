@@ -89,7 +89,7 @@ class _PhotoPermissionStepState extends State<PhotoPermissionStep>
                           width: 120,
                           height: 120,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0039A6).withOpacity(0.1),
+                            color: const Color(0xFF0039A6).withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -148,7 +148,7 @@ class _PhotoPermissionStepState extends State<PhotoPermissionStep>
                             gradient: LinearGradient(
                               colors: [
                                 Colors.blue[50]!,
-                                Colors.blue[100]!.withOpacity(0.3),
+                                Colors.blue[100]!.withValues(alpha: 0.3),
                               ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,

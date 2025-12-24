@@ -92,7 +92,7 @@ class _MediaUploadStepState extends State<MediaUploadStep> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0039A6).withOpacity(0.1),
+                  color: const Color(0xFF0039A6).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -110,7 +110,7 @@ class _MediaUploadStepState extends State<MediaUploadStep> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0039A6).withOpacity(0.1),
+                  color: const Color(0xFF0039A6).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -128,7 +128,7 @@ class _MediaUploadStepState extends State<MediaUploadStep> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0039A6).withOpacity(0.1),
+                  color: const Color(0xFF0039A6).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -245,7 +245,7 @@ class _MediaUploadStepState extends State<MediaUploadStep> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0039A6).withOpacity(0.1),
+                    color: const Color(0xFF0039A6).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -264,7 +264,7 @@ class _MediaUploadStepState extends State<MediaUploadStep> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -440,7 +440,8 @@ class _MediaUploadStepState extends State<MediaUploadStep> {
                               ),
                             ),
                             child: DragTarget<int>(
-                              onAccept: (fromIndex) {
+                              onAcceptWithDetails: (details) {
+                                final fromIndex = details.data;
                                 setState(() {
                                   final temp = _mediaSlots[fromIndex];
                                   _mediaSlots[fromIndex] = _mediaSlots[index];
@@ -476,7 +477,7 @@ class _MediaUploadStepState extends State<MediaUploadStep> {
                       gradient: LinearGradient(
                         colors: [
                           Colors.blue[50]!,
-                          Colors.blue[100]!.withOpacity(0.3),
+                          Colors.blue[100]!.withValues(alpha: 0.3),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -524,7 +525,7 @@ class _MediaUploadStepState extends State<MediaUploadStep> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),

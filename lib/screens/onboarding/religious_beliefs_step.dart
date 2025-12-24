@@ -214,7 +214,7 @@ class _ReligiousBeliefStepState extends State<ReligiousBeliefStep> {
                               boxShadow: [
                                 if (isSelected)
                                   BoxShadow(
-                                    color: const Color(0xFF0039A6).withOpacity(0.2),
+                                    color: const Color(0xFF0039A6).withValues(alpha: 0.2),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
@@ -260,7 +260,7 @@ class _ReligiousBeliefStepState extends State<ReligiousBeliefStep> {
                         gradient: LinearGradient(
                           colors: [
                             Colors.blue[50]!,
-                            Colors.blue[100]!.withOpacity(0.3),
+                            Colors.blue[100]!.withValues(alpha: 0.3),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -314,7 +314,7 @@ class _ReligiousBeliefStepState extends State<ReligiousBeliefStep> {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: _showOnProfile
-                                    ? const Color(0xFF0039A6).withOpacity(0.1)
+                                    ? const Color(0xFF0039A6).withValues(alpha: 0.1)
                                     : Colors.grey[200],
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -356,7 +356,7 @@ class _ReligiousBeliefStepState extends State<ReligiousBeliefStep> {
                               onChanged: (value) {
                                 setState(() => _showOnProfile = value);
                               },
-                              activeColor: const Color(0xFF0039A6),
+                              activeThumbColor: const Color(0xFF0039A6),
                             ),
                           ],
                         ),
@@ -375,7 +375,7 @@ class _ReligiousBeliefStepState extends State<ReligiousBeliefStep> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),

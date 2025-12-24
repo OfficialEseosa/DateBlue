@@ -98,8 +98,7 @@ class MediaPicker {
             showCropGrid: true,
             cropGridRowCount: 3,
             cropGridColumnCount: 3,
-            statusBarColor: const Color(0xFF0039A6),
-            dimmedLayerColor: Colors.black.withOpacity(0.8),
+            dimmedLayerColor: Colors.black.withValues(alpha: 0.8),
           ),
           IOSUiSettings(
             title: 'Crop Photo',
