@@ -104,8 +104,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  const Color(0xFF0039A6).withOpacity(0.85),
-                  const Color(0xFF0039A6).withOpacity(0.95),
+                  const Color(0xFF0039A6).withValues(alpha: 0.85),
+                  const Color(0xFF0039A6).withValues(alpha: 0.95),
                 ],
               ),
             ),
@@ -115,15 +115,15 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Row(
-                    children: List.generate(16, (index) {
+                    children: List.generate(17, (index) {
                       return Expanded(
                         child: Container(
                           height: 4,
-                          margin: EdgeInsets.only(right: index < 15 ? 8 : 0),
+                          margin: EdgeInsets.only(right: index < 16 ? 8 : 0),
                           decoration: BoxDecoration(
                             color: index <= _currentStep
                                 ? Colors.white
-                                : Colors.white.withOpacity(0.3),
+                                : Colors.white.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),

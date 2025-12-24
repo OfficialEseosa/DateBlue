@@ -197,7 +197,7 @@ class ProfileCard extends StatelessWidget {
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.3),
+          color: Colors.black.withValues(alpha: 0.3),
           shape: BoxShape.circle,
         ),
         child: Icon(

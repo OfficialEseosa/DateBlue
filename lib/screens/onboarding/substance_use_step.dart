@@ -133,7 +133,7 @@ class _SubstanceUseStepState extends State<SubstanceUseStep> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF0039A6).withOpacity(0.1),
+                color: const Color(0xFF0039A6).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -299,7 +299,7 @@ class _SubstanceUseStepState extends State<SubstanceUseStep> {
                         gradient: LinearGradient(
                           colors: [
                             Colors.blue[50]!,
-                            Colors.blue[100]!.withOpacity(0.3),
+                            Colors.blue[100]!.withValues(alpha: 0.3),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -352,7 +352,7 @@ class _SubstanceUseStepState extends State<SubstanceUseStep> {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: _showOnProfile
-                                    ? const Color(0xFF0039A6).withOpacity(0.1)
+                                    ? const Color(0xFF0039A6).withValues(alpha: 0.1)
                                     : Colors.grey[200],
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -394,7 +394,7 @@ class _SubstanceUseStepState extends State<SubstanceUseStep> {
                               onChanged: (value) {
                                 setState(() => _showOnProfile = value);
                               },
-                              activeColor: const Color(0xFF0039A6),
+                              activeThumbColor: const Color(0xFF0039A6),
                             ),
                           ],
                         ),
@@ -413,7 +413,7 @@ class _SubstanceUseStepState extends State<SubstanceUseStep> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),

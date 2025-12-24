@@ -226,7 +226,7 @@ class _LoginPageState extends State<LoginPage> {
 
           // Overlay to make text/buttons readable
           Container(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
           ),
 
           // Content

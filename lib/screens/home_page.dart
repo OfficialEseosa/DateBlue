@@ -118,8 +118,8 @@ class _HomePageState extends State<HomePage> {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        const Color(0xFF97CAEB).withOpacity(0.6),
-                        const Color(0xFF97CAEB).withOpacity(0.85),
+                        const Color(0xFF97CAEB).withValues(alpha: 0.6),
+                        const Color(0xFF97CAEB).withValues(alpha: 0.85),
                         const Color(0xFF97CAEB),
                       ],
                       stops: const [0.0, 0.7, 1.0],
@@ -181,7 +181,7 @@ class _HomePageState extends State<HomePage> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, -5),
           ),
@@ -308,7 +308,7 @@ class _AnimatedNavButtonState extends State<_AnimatedNavButton>
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: widget.isSelected
-                ? const Color(0xFF0039A6).withOpacity(0.1)
+                ? const Color(0xFF0039A6).withValues(alpha: 0.1)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),

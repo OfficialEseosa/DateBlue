@@ -170,7 +170,7 @@ class _HometownStepState extends State<HometownStep> {
                         gradient: LinearGradient(
                           colors: [
                             Colors.blue[50]!,
-                            Colors.blue[100]!.withOpacity(0.3),
+                            Colors.blue[100]!.withValues(alpha: 0.3),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -224,7 +224,7 @@ class _HometownStepState extends State<HometownStep> {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: _showOnProfile
-                                    ? const Color(0xFF0039A6).withOpacity(0.1)
+                                    ? const Color(0xFF0039A6).withValues(alpha: 0.1)
                                     : Colors.grey[300],
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -270,7 +270,7 @@ class _HometownStepState extends State<HometownStep> {
                                   _showOnProfile = value;
                                 });
                               },
-                              activeColor: const Color(0xFF0039A6),
+                              activeThumbColor: const Color(0xFF0039A6),
                             ),
                           ],
                         ),
@@ -290,7 +290,7 @@ class _HometownStepState extends State<HometownStep> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withValues(alpha: 0.1),
                   spreadRadius: 1,
                   blurRadius: 5,
                   offset: const Offset(0, -3),

@@ -24,7 +24,7 @@ class ProfileVitalsCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(DateBlueTheme.radiusLarge),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -40,7 +40,7 @@ class ProfileVitalsCard extends StatelessWidget {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: DateBlueTheme.primaryBlue.withOpacity(0.1),
+                  color: DateBlueTheme.primaryBlue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -77,10 +77,10 @@ class ProfileVitalsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: DateBlueTheme.primaryBlue.withOpacity(0.08),
+        color: DateBlueTheme.primaryBlue.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: DateBlueTheme.primaryBlue.withOpacity(0.2),
+          color: DateBlueTheme.primaryBlue.withValues(alpha: 0.2),
           width: 1,
         ),
       ),

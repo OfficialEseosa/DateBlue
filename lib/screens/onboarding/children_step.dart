@@ -207,7 +207,7 @@ class _ChildrenStepState extends State<ChildrenStep> {
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? const Color(0xFF0039A6).withOpacity(0.1)
+                                    ? const Color(0xFF0039A6).withValues(alpha: 0.1)
                                     : Colors.white,
                                 border: Border.all(
                                   color: isSelected
@@ -291,7 +291,7 @@ class _ChildrenStepState extends State<ChildrenStep> {
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? const Color(0xFF0039A6).withOpacity(0.1)
+                                    ? const Color(0xFF0039A6).withValues(alpha: 0.1)
                                     : Colors.white,
                                 border: Border.all(
                                   color: isSelected
@@ -375,7 +375,7 @@ class _ChildrenStepState extends State<ChildrenStep> {
                               _showOnProfile = value;
                             });
                           },
-                          activeColor: const Color(0xFF0039A6),
+                          activeThumbColor: const Color(0xFF0039A6),
                         ),
                       ],
                     ),
@@ -424,7 +424,7 @@ class _ChildrenStepState extends State<ChildrenStep> {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, -5),
               ),
