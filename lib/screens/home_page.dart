@@ -45,16 +45,29 @@ class _HomePageState extends State<HomePage> {
           .get();
 
       if (doc.exists) {
+        final data = doc.data();
+        
+        // Precache main photo immediately (await to ensure it's ready)
+        if (data?['mediaUrls'] != null &&
+            (data!['mediaUrls'] as List).isNotEmpty) {
+          final mediaUrls = data['mediaUrls'] as List;
+          final mainPhotoUrl = mediaUrls[0] as String;
+          
+          // Await the main photo precache so it's ready when user goes to profile
+          await precacheImage(NetworkImage(mainPhotoUrl), context);
+          
+          // Precache other photos in background (don't await)
+          for (int i = 1; i < mediaUrls.length; i++) {
+            precacheImage(NetworkImage(mediaUrls[i] as String), context);
+          }
+        }
+        
         setState(() {
-          _userData = doc.data();
+          _userData = data;
           _isLoading = false;
         });
-
-        if (_userData?['mediaUrls'] != null &&
-            (_userData!['mediaUrls'] as List).isNotEmpty) {
-          final mainPhotoUrl = (_userData!['mediaUrls'] as List)[0] as String;
-          precacheImage(NetworkImage(mainPhotoUrl), context);
-        }
+      } else {
+        setState(() => _isLoading = false);
       }
     } catch (e) {
       debugPrint('Error loading user data: $e');
@@ -78,50 +91,66 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: const Color(0xFF97CAEB),
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(50),
-        child: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          flexibleSpace: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.asset(
-                'assets/images/GSU_Auburn-Ave01.jpg',
-                fit: BoxFit.cover,
-              ),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      const Color(0xFF97CAEB).withOpacity(0.7),
-                      const Color(0xFF97CAEB).withOpacity(0.7),
-                    ],
-                  ),
-                ),
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: Container(
+          decoration: const BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 8,
+                offset: Offset(0, 2),
               ),
             ],
           ),
-          title: Padding(
-            padding: const EdgeInsets.only(top: 20),
-            child: RichText(
-              text: const TextSpan(
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+          child: ClipRRect(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Background image
+                Image.asset(
+                  'assets/images/GSU_Auburn-Ave01.jpg',
+                  fit: BoxFit.cover,
                 ),
-                children: [
-                  TextSpan(
-                    text: 'Date',
-                    style: TextStyle(color: Colors.white),
+                // Gradient overlay - fades to page color at bottom
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        const Color(0xFF97CAEB).withOpacity(0.6),
+                        const Color(0xFF97CAEB).withOpacity(0.85),
+                        const Color(0xFF97CAEB),
+                      ],
+                      stops: const [0.0, 0.7, 1.0],
+                    ),
                   ),
-                  TextSpan(
-                    text: 'Blue',
-                    style: TextStyle(color: Color(0xFF0039A6)),
+                ),
+                // Title - centered vertically and horizontally
+                SafeArea(
+                  child: Center(
+                    child: RichText(
+                      text: const TextSpan(
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: 'Date',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          TextSpan(
+                            text: 'Blue',
+                            style: TextStyle(color: Color(0xFF0039A6)),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -189,31 +218,104 @@ class _HomePageState extends State<HomePage> {
     required int index,
   }) {
     final isSelected = _currentIndex == index;
-    return InkWell(
+    return _AnimatedNavButton(
+      isSelected: isSelected,
       onTap: () => setState(() => _currentIndex = index),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        child: Icon(
-          icon,
-          color: isSelected ? const Color(0xFF0039A6) : Colors.grey,
-          size: 28,
-        ),
+      child: Icon(
+        icon,
+        color: isSelected ? const Color(0xFF0039A6) : Colors.grey,
+        size: 28,
       ),
     );
   }
 
   Widget _buildProfileNavItem() {
     final isSelected = _currentIndex == 3;
-    return InkWell(
+    return _AnimatedNavButton(
+      isSelected: isSelected,
       onTap: () => setState(() => _currentIndex = 3),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        child: Icon(
-          Icons.person,
-          color: isSelected ? const Color(0xFF0039A6) : Colors.grey,
-          size: 28,
+      child: Icon(
+        Icons.person,
+        color: isSelected ? const Color(0xFF0039A6) : Colors.grey,
+        size: 28,
+      ),
+    );
+  }
+}
+
+/// Animated navigation button with scale effect on tap
+class _AnimatedNavButton extends StatefulWidget {
+  final bool isSelected;
+  final VoidCallback onTap;
+  final Widget child;
+
+  const _AnimatedNavButton({
+    required this.isSelected,
+    required this.onTap,
+    required this.child,
+  });
+
+  @override
+  State<_AnimatedNavButton> createState() => _AnimatedNavButtonState();
+}
+
+class _AnimatedNavButtonState extends State<_AnimatedNavButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 100),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails details) {
+    _controller.forward();
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    _controller.reverse();
+    widget.onTap();
+  }
+
+  void _onTapCancel() {
+    _controller.reverse();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? const Color(0xFF0039A6).withOpacity(0.1)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: widget.child,
         ),
       ),
     );
   }
 }
+

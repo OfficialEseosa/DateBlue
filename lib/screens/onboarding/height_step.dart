@@ -39,23 +39,18 @@ class _HeightStepState extends State<HeightStep> {
   void initState() {
     super.initState();
     
-    // Load saved height data
-    final savedHeight = widget.initialData['height'];
-    final savedUnit = widget.initialData['heightUnit'];
+    // Load saved height data - stored as cm integer
+    final savedHeightCm = widget.initialData['heightCm'];
     _showOnProfile = widget.initialData['showHeightOnProfile'] ?? true;
 
-    if (savedHeight != null && savedUnit != null) {
-      if (savedUnit == 'feet') {
-        _useFeet = true;
-        final parts = (savedHeight as String).split("'");
-        if (parts.length == 2) {
-          _selectedFeet = int.tryParse(parts[0]) ?? 5;
-          _selectedInches = int.tryParse(parts[1].replaceAll('"', '')) ?? 7;
-        }
-      } else {
-        _useFeet = false;
-        _selectedCm = savedHeight as int;
-      }
+    if (savedHeightCm != null && savedHeightCm is int) {
+      _selectedCm = savedHeightCm;
+      // Convert cm to feet/inches for the picker
+      final totalInches = (_selectedCm / 2.54).round();
+      _selectedFeet = totalInches ~/ 12;
+      _selectedInches = totalInches % 12;
+      if (_selectedFeet < 3) _selectedFeet = 3;
+      if (_selectedFeet > 8) _selectedFeet = 8;
     }
 
     _feetController = FixedExtentScrollController(initialItem: _selectedFeet - 3);
@@ -106,20 +101,20 @@ class _HeightStepState extends State<HeightStep> {
     setState(() => _isLoading = true);
 
     try {
+      // Always calculate and store height in cm
+      int heightCm;
+      if (_useFeet) {
+        heightCm = ((_selectedFeet * 12 + _selectedInches) * 2.54).round();
+      } else {
+        heightCm = _selectedCm;
+      }
+
       final data = <String, dynamic>{
-        'heightUnit': _useFeet ? 'feet' : 'cm',
+        'heightCm': heightCm,
         'showHeightOnProfile': _showOnProfile,
         'onboardingStep': 8,
         'updatedAt': FieldValue.serverTimestamp(),
       };
-
-      if (_useFeet) {
-        data['height'] = "$_selectedFeet'$_selectedInches\"";
-        data['heightCm'] = ((_selectedFeet * 12 + _selectedInches) * 2.54).round();
-      } else {
-        data['height'] = _selectedCm;
-        data['heightCm'] = _selectedCm;
-      }
 
       await FirebaseFirestore.instance
           .collection('users')

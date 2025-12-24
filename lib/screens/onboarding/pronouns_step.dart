@@ -44,26 +44,26 @@ class _PronounsStepState extends State<PronounsStep> {
     },
   ];
 
-  final List<Map<String, String>> _pronounOptions = [
+  final List<Map<String, dynamic>> _pronounOptions = [
     {
       'value': 'he/him',
       'label': 'He/Him',
-      'icon': '👨',
+      'icon': Icons.person,
     },
     {
       'value': 'she/her',
       'label': 'She/Her',
-      'icon': '👩',
+      'icon': Icons.person_outline,
     },
     {
       'value': 'they/them',
       'label': 'They/Them',
-      'icon': '🧑',
+      'icon': Icons.people_outline,
     },
     {
       'value': 'other',
       'label': 'Other',
-      'icon': '✨',
+      'icon': Icons.more_horiz,
     },
   ];
 
@@ -304,9 +304,12 @@ class _PronounsStepState extends State<PronounsStep> {
                                   mainAxisSize: MainAxisSize.min,
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Text(
-                                      option['icon']!,
-                                      style: const TextStyle(fontSize: 28),
+                                    Icon(
+                                      option['icon'] as IconData,
+                                      color: isSelected
+                                          ? const Color(0xFF0039A6)
+                                          : Colors.grey[700],
+                                      size: 28,
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
