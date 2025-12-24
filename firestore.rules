@@ -2,22 +2,37 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == 'raphaelomorose@gmail.com';
+    }
+    
     match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      // Allow reading own profile or all profiles if authenticated (for discover)
+      allow read: if request.auth != null;
       
-      allow create: if request.auth != null && request.auth.uid == userId;
+      // Allow creating own profile OR admin can create test users
+      allow create: if request.auth != null && (
+        request.auth.uid == userId || 
+        (isAdmin() && request.resource.data.isTestUser == true)
+      );
       
-      allow update: if request.auth != null 
-                    && request.auth.uid == userId
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-                      'verified',
-                      'verificationCode', 
-                      'verificationCodeExpiry',
-                      'campusEmail'
-                    ]);
+      // Allow updating own profile (with restrictions) OR admin can update test users
+      allow update: if request.auth != null && (
+        (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'verified',
+          'verificationCode', 
+          'verificationCodeExpiry',
+          'campusEmail'
+        ])) ||
+        (isAdmin() && resource.data.isTestUser == true)
+      );
       
-      // Allow users to delete their own account
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      // Allow deleting own account OR admin can delete test users
+      allow delete: if request.auth != null && (
+        request.auth.uid == userId || 
+        (isAdmin() && resource.data.isTestUser == true)
+      );
     }
     
     match /mail/{mailId} {

@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../login_page.dart';
+import 'admin/admin_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   final User user;
@@ -261,6 +262,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                   ),
+
+                  // Admin Section - only visible for admin email
+                  if (widget.user.email == 'raphaelomorose@gmail.com') ...[
+                    const SizedBox(height: 32),
+                    const Text(
+                      'Admin',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: _buildActionItem(
+                        icon: Icons.admin_panel_settings,
+                        label: 'Admin Tools',
+                        color: Colors.purple,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AdminScreen()),
+                        ),
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 32),
 
