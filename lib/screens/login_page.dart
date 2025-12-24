@@ -70,9 +70,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       _player = LoginPage._preloadedPlayer;
       
       // Create the VideoController if it doesn't exist yet
-      if (LoginPage._preloadedController == null) {
-        LoginPage._preloadedController = VideoController(_player!);
-      }
+      LoginPage._preloadedController ??= VideoController(_player!);
       _videoController = LoginPage._preloadedController;
       
       // Check if already playing (returning from another screen)
