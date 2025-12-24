@@ -438,23 +438,32 @@ class _DateInputFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    final text = newValue.text;
+    final newDigits = newValue.text.replaceAll('/', '');
+    final oldDigits = oldValue.text.replaceAll('/', '');
 
-    if (text.length > 10) {
+    final isDeleting = newDigits.length < oldDigits.length;
+    
+    if (newDigits.length > 8) {
       return oldValue;
     }
 
     String formatted = '';
-    for (int i = 0; i < text.length; i++) {
-      formatted += text[i];
-      if (i == 1 || i == 3) {
+    for (int i = 0; i < newDigits.length; i++) {
+      formatted += newDigits[i];
+      if ((i == 1 || i == 3) && i < newDigits.length - 1) {
         formatted += '/';
       }
+    }
+    
+    int cursorPosition = formatted.length;
+
+    if (isDeleting && formatted.isNotEmpty) {
+      cursorPosition = formatted.length;
     }
 
     return TextEditingValue(
       text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
+      selection: TextSelection.collapsed(offset: cursorPosition),
     );
   }
 }

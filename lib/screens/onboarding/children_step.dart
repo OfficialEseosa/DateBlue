@@ -26,44 +26,44 @@ class _ChildrenStepState extends State<ChildrenStep> {
   bool _showOnProfile = true;
   bool _isLoading = false;
 
-  final List<Map<String, String>> _childrenOptions = [
+  final List<Map<String, dynamic>> _childrenOptions = [
     {
       'value': 'no_children',
       'label': "Don't have children",
-      'icon': '👤',
+      'icon': Icons.person_outline,
       'description': 'No kids',
     },
     {
       'value': 'have_children',
       'label': 'Have children',
-      'icon': '👨‍👧‍👦',
+      'icon': Icons.family_restroom,
       'description': 'I am a parent',
     },
   ];
 
-  final List<Map<String, String>> _wantChildrenOptions = [
+  final List<Map<String, dynamic>> _wantChildrenOptions = [
     {
       'value': 'want_children',
       'label': 'Want children',
-      'icon': '👶',
+      'icon': Icons.child_care,
       'description': 'Looking to have kids',
     },
     {
       'value': 'dont_want_children',
       'label': "Don't want children",
-      'icon': '🚫',
+      'icon': Icons.do_not_disturb,
       'description': 'Not interested in having kids',
     },
     {
       'value': 'open_to_children',
       'label': 'Open to children',
-      'icon': '🤷',
+      'icon': Icons.help_outline,
       'description': 'Would consider it',
     },
     {
       'value': 'not_sure',
       'label': 'Not sure yet',
-      'icon': '💭',
+      'icon': Icons.question_mark,
       'description': 'Still thinking about it',
     },
   ];
@@ -221,9 +221,12 @@ class _ChildrenStepState extends State<ChildrenStep> {
                                 mainAxisSize: MainAxisSize.min,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(
-                                    option['icon']!,
-                                    style: const TextStyle(fontSize: 32),
+                                  Icon(
+                                    option['icon'] as IconData,
+                                    color: isSelected
+                                        ? const Color(0xFF0039A6)
+                                        : Colors.grey[700],
+                                    size: 32,
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
@@ -302,9 +305,12 @@ class _ChildrenStepState extends State<ChildrenStep> {
                                 mainAxisSize: MainAxisSize.min,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(
-                                    option['icon']!,
-                                    style: const TextStyle(fontSize: 32),
+                                  Icon(
+                                    option['icon'] as IconData,
+                                    color: isSelected
+                                        ? const Color(0xFF0039A6)
+                                        : Colors.grey[700],
+                                    size: 32,
                                   ),
                                   const SizedBox(height: 8),
                                   Text(

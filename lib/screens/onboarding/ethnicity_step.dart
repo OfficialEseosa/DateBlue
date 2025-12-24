@@ -25,51 +25,51 @@ class _EthnicityStepState extends State<EthnicityStep> {
   bool _showOnProfile = true;
   bool _isLoading = false;
 
-  final List<Map<String, String>> _ethnicityOptions = [
+  final List<Map<String, dynamic>> _ethnicityOptions = [
     {
       'value': 'asian',
       'label': 'Asian',
-      'icon': '🌏',
+      'icon': Icons.public,
     },
     {
       'value': 'black',
       'label': 'Black / African Descent',
-      'icon': '🌍',
+      'icon': Icons.public,
     },
     {
       'value': 'hispanic',
       'label': 'Hispanic / Latino',
-      'icon': '🌎',
+      'icon': Icons.public,
     },
     {
       'value': 'indigenous',
       'label': 'Indigenous / Native',
-      'icon': '🪶',
+      'icon': Icons.nature_people,
     },
     {
       'value': 'middle_eastern',
       'label': 'Middle Eastern',
-      'icon': '🕌',
+      'icon': Icons.public,
     },
     {
       'value': 'pacific_islander',
       'label': 'Pacific Islander',
-      'icon': '🏝️',
+      'icon': Icons.public,
     },
     {
       'value': 'south_asian',
       'label': 'South Asian',
-      'icon': '🪷',
+      'icon': Icons.public,
     },
     {
       'value': 'white',
       'label': 'White / Caucasian',
-      'icon': '🌐',
+      'icon': Icons.public,
     },
     {
       'value': 'other',
       'label': 'Other',
-      'icon': '✨',
+      'icon': Icons.more_horiz,
     },
   ];
 
@@ -210,9 +210,12 @@ class _EthnicityStepState extends State<EthnicityStep> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Center(
-                                  child: Text(
-                                    option['icon']!,
-                                    style: const TextStyle(fontSize: 24),
+                                  child: Icon(
+                                    option['icon'] as IconData,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.grey[700],
+                                    size: 24,
                                   ),
                                 ),
                               ),

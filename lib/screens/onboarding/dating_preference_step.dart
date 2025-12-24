@@ -24,21 +24,21 @@ class _DatingPreferenceStepState extends State<DatingPreferenceStep> {
   final Set<String> _selectedPreferences = {};
   bool _isLoading = false;
 
-  final List<Map<String, String>> _preferenceOptions = [
+  final List<Map<String, dynamic>> _preferenceOptions = [
     {
       'value': 'men',
       'label': 'Men',
-      'icon': '♂️',
+      'icon': Icons.male,
     },
     {
       'value': 'women',
       'label': 'Women',
-      'icon': '♀️',
+      'icon': Icons.female,
     },
     {
       'value': 'nonbinary',
       'label': 'Non-binary',
-      'icon': '⚧️',
+      'icon': Icons.transgender,
     },
   ];
 
@@ -177,9 +177,12 @@ class _DatingPreferenceStepState extends State<DatingPreferenceStep> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Center(
-                                  child: Text(
-                                    option['icon']!,
-                                    style: const TextStyle(fontSize: 24),
+                                  child: Icon(
+                                    option['icon'] as IconData,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.grey[700],
+                                    size: 24,
                                   ),
                                 ),
                               ),
