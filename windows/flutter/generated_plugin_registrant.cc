@@ -16,6 +16,13 @@
 #include <permission_handler_windows/permission_handler_windows_plugin.h>
 #include <volume_controller/volume_controller_plugin_c_api.h>
 
+/**
+ * @brief Registers each platform plugin with the provided Flutter plugin registry.
+ *
+ * Makes the bundled Windows plugins available to the Flutter runtime by registering them with the given registry.
+ *
+ * @param registry Pointer to the Flutter plugin registry used to obtain plugin registrars.
+ */
 void RegisterPlugins(flutter::PluginRegistry* registry) {
   CloudFirestorePluginCApiRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("CloudFirestorePluginCApi"));

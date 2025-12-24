@@ -22,6 +22,8 @@ import sqflite_darwin
 import volume_controller
 import wakelock_plus
 
+/// Registers all generated Flutter macOS plugins with the provided plugin registry.
+/// - Parameter registry: The FlutterPluginRegistry used to obtain registrars for each plugin.
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   AudioSessionPlugin.register(with: registry.registrar(forPlugin: "AudioSessionPlugin"))
   FLTFirebaseFirestorePlugin.register(with: registry.registrar(forPlugin: "FLTFirebaseFirestorePlugin"))
