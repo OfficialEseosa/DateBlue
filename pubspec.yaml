@@ -52,6 +52,11 @@ dependencies:
   firebase_storage: ^13.0.4
   image_cropper: ^11.0.0
   flutter_image_compress: ^2.3.0
+  audio_waveforms: ^1.2.0
+  path_provider: ^2.1.5
+  just_audio: ^0.9.43
+  permission_handler: ^11.3.1
+  cached_network_image: ^3.4.1
 
 dev_dependencies:
   flutter_test:
@@ -83,6 +88,7 @@ flutter:
   assets:
     - assets/videos/
     - assets/images/
+    - assets/images/campus/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

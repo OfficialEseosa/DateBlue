@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../widgets/onboarding_bottom_bar.dart';
 
 class BirthdayStep extends StatefulWidget {
   final User user;
@@ -353,78 +354,10 @@ class _BirthdayStepState extends State<BirthdayStep> {
             ),
           ),
         ),
-
-        // Bottom buttons
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Back button
-              SizedBox(
-                height: 50,
-                width: 50,
-                child: OutlinedButton(
-                  onPressed: widget.onBack,
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    side: BorderSide(color: Colors.grey[300]!),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.arrow_back,
-                    color: Colors.grey[700],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Continue button
-              Expanded(
-                child: SizedBox(
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _validateAndProceed,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0039A6),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text(
-                            'Continue',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        OnboardingBottomBar(
+          onBack: widget.onBack,
+          onContinue: _validateAndProceed,
+          isLoading: _isLoading,
         ),
       ],
     );

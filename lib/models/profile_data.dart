@@ -299,30 +299,33 @@ class ProfileData {
 class ProfilePrompt {
   final String id;
   final String category;
+  final String question;
   final String text;
 
   const ProfilePrompt({
     required this.id,
     required this.category,
+    required this.question,
     required this.text,
   });
 
   factory ProfilePrompt.fromMap(Map<String, dynamic> map) {
+    // Handle both new format (with question field) and legacy format (question in id)
+    String question = map['question'] ?? '';
+    if (question.isEmpty && map['id'] != null) {
+      // Legacy fallback: extract question from id
+      final parts = (map['id'] as String).split('-');
+      if (parts.length > 1) {
+        question = parts.sublist(1).join('-');
+      }
+    }
+
     return ProfilePrompt(
       id: map['id'] ?? '',
       category: map['category'] ?? '',
+      question: question,
       text: map['text'] ?? '',
     );
-  }
-
-  /// Get the question text from the id
-  String get question {
-    // The id format is "category-question"
-    final parts = id.split('-');
-    if (parts.length > 1) {
-      return parts.sublist(1).join('-');
-    }
-    return id;
   }
 }
 

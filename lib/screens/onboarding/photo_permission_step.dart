@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../widgets/onboarding_bottom_bar.dart';
 
 class PhotoPermissionStep extends StatefulWidget {
   final User user;
@@ -62,161 +63,123 @@ class _PhotoPermissionStepState extends State<PhotoPermissionStep>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF0039A6)),
-          onPressed: widget.onBack,
-        ),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            children: [
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Animated Camera Icon
-                      ScaleTransition(
-                        scale: _scaleAnimation,
-                        child: Container(
-                          width: 120,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0039A6).withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.photo_camera,
-                            size: 60,
-                            color: Color(0xFF0039A6),
-                          ),
+    return Column(
+      children: [
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(30),
+                topRight: Radius.circular(30),
+              ),
+            ),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Animated Camera Icon
+                    ScaleTransition(
+                      scale: _scaleAnimation,
+                      child: Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0039A6).withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.photo_camera,
+                          size: 60,
+                          color: Color(0xFF0039A6),
                         ),
                       ),
+                    ),
 
-                      const SizedBox(height: 40),
+                    const SizedBox(height: 40),
 
-                      // Main Text
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: const Text(
-                          'Time to show off\nhow a real Panther\nlooks like!',
+                    // Main Text
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: const Text(
+                        'Time to show off\nhow a real Panther\nlooks like!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0039A6),
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Description
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          'Add photos and videos to your profile to help others get to know you better',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0039A6),
-                            height: 1.3,
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                            height: 1.5,
                           ),
                         ),
                       ),
+                    ),
 
-                      const SizedBox(height: 24),
+                    const SizedBox(height: 40),
 
-                      // Description
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Text(
-                            'Add photos and videos to your profile to help others get to know you better',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
-                              height: 1.5,
+                    // Permission Info Card
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.blue[100]!),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.image,
+                              color: Colors.blue[700],
+                              size: 24,
                             ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 40),
-
-                      // Permission Info Card
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          margin: const EdgeInsets.symmetric(horizontal: 20),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.blue[50]!,
-                                Colors.blue[100]!.withValues(alpha: 0.3),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+                            const SizedBox(width: 16),
+                            Text(
+                              'You can add up to 6 photos or videos',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.blue[700],
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.blue[100]!),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.image,
-                                  color: Color(0xFF0039A6),
-                                  size: 24,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Text(
-                                  'You can add up to 6 photos or videos',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[700],
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-
-              // Continue Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _handleContinue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0039A6),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Add Photos & Videos',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-      ),
+        OnboardingBottomBar(
+          onBack: widget.onBack,
+          onContinue: _handleContinue,
+          continueText: 'Add Photos & Videos',
+        ),
+      ],
     );
   }
 }

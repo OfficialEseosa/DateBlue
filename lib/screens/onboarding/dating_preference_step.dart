@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../widgets/onboarding_bottom_bar.dart';
 
 class DatingPreferenceStep extends StatefulWidget {
   final User user;
@@ -25,21 +26,9 @@ class _DatingPreferenceStepState extends State<DatingPreferenceStep> {
   bool _isLoading = false;
 
   final List<Map<String, dynamic>> _preferenceOptions = [
-    {
-      'value': 'men',
-      'label': 'Men',
-      'icon': Icons.male,
-    },
-    {
-      'value': 'women',
-      'label': 'Women',
-      'icon': Icons.female,
-    },
-    {
-      'value': 'nonbinary',
-      'label': 'Non-binary',
-      'icon': Icons.transgender,
-    },
+    {'value': 'men', 'label': 'Men', 'icon': Icons.male},
+    {'value': 'women', 'label': 'Women', 'icon': Icons.female},
+    {'value': 'nonbinary', 'label': 'Non-binary', 'icon': Icons.transgender},
   ];
 
   @override
@@ -141,70 +130,9 @@ class _DatingPreferenceStepState extends State<DatingPreferenceStep> {
                   const SizedBox(height: 30),
 
                   // Dating preference selection cards
-                  ...List.generate(_preferenceOptions.length, (index) {
-                    final option = _preferenceOptions[index];
+                  ..._preferenceOptions.map((option) {
                     final isSelected = _selectedPreferences.contains(option['value']);
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: InkWell(
-                        onTap: () => _togglePreference(option['value']!),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(0xFF0039A6).withValues(alpha: 0.1)
-                                : Colors.white,
-                            border: Border.all(
-                              color: isSelected
-                                  ? const Color(0xFF0039A6)
-                                  : Colors.grey[300]!,
-                              width: isSelected ? 2 : 1,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            children: [
-                              // Icon
-                              Container(
-                                width: 50,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? const Color(0xFF0039A6)
-                                      : Colors.grey[100],
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Center(
-                                  child: Icon(
-                                    option['icon'] as IconData,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : Colors.grey[700],
-                                    size: 24,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              // Preference label
-                              Expanded(
-                                child: Text(
-                                  option['label']!,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: isSelected
-                                        ? const Color(0xFF0039A6)
-                                        : Colors.black87,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
+                    return _buildPreferenceCard(option, isSelected);
                   }),
 
                   const SizedBox(height: 20),
@@ -240,107 +168,130 @@ class _DatingPreferenceStepState extends State<DatingPreferenceStep> {
 
                   const SizedBox(height: 20),
 
-                  // Selected count indicator
-                  if (_selectedPreferences.isNotEmpty)
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0039A6).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '${_selectedPreferences.length} ${_selectedPreferences.length == 1 ? 'preference' : 'preferences'} selected',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF0039A6),
-                          ),
-                        ),
-                      ),
-                    ),
+                  // Selected count indicator with animation
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    child: _selectedPreferences.isNotEmpty
+                        ? Center(
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0039A6).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '${_selectedPreferences.length} ${_selectedPreferences.length == 1 ? 'preference' : 'preferences'} selected',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF0039A6),
+                                ),
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
                 ],
               ),
             ),
           ),
         ),
+        OnboardingBottomBar(
+          onBack: widget.onBack,
+          onContinue: _saveAndContinue,
+          isLoading: _isLoading,
+          canContinue: _selectedPreferences.isNotEmpty,
+        ),
+      ],
+    );
+  }
 
-        // Bottom buttons
-        Container(
-          padding: const EdgeInsets.all(20),
+  Widget _buildPreferenceCard(Map<String, dynamic> option, bool isSelected) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: GestureDetector(
+        onTap: () => _togglePreference(option['value']!),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
-              ),
-            ],
+            color: isSelected
+                ? const Color(0xFF0039A6).withValues(alpha: 0.1)
+                : Colors.white,
+            border: Border.all(
+              color: isSelected
+                  ? const Color(0xFF0039A6)
+                  : Colors.grey[300]!,
+              width: isSelected ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
             children: [
-              // Back button
-              SizedBox(
-                height: 50,
+              // Icon container
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
                 width: 50,
-                child: OutlinedButton(
-                  onPressed: widget.onBack,
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    side: BorderSide(color: Colors.grey[300]!),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.arrow_back,
-                    color: Colors.grey[700],
+                height: 50,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFF0039A6)
+                      : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  option['icon'] as IconData,
+                  color: isSelected ? Colors.white : Colors.grey[700],
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Preference label
+              Expanded(
+                child: Text(
+                  option['label']!,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected
+                        ? const Color(0xFF0039A6)
+                        : Colors.black87,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              // Continue button
-              Expanded(
-                child: SizedBox(
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _saveAndContinue,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0039A6),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text(
-                            'Continue',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+              // Checkbox indicator
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  color: isSelected 
+                      ? const Color(0xFF0039A6)
+                      : Colors.transparent,
+                  border: Border.all(
+                    color: isSelected 
+                        ? const Color(0xFF0039A6)
+                        : Colors.grey[400]!,
+                    width: 2,
                   ),
                 ),
+                child: isSelected 
+                    ? const Icon(
+                        Icons.check,
+                        size: 18,
+                        color: Colors.white,
+                      )
+                    : null,
               ),
             ],
           ),
         ),
-      ],
+      ),
     );
   }
 }

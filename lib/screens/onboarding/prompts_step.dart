@@ -1,7 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:just_audio/just_audio.dart';
 import 'models/prompt.dart';
+import '../../widgets/onboarding_bottom_bar.dart';
+import '../../widgets/prompts/prompts_widgets.dart';
 
 class PromptsStep extends StatefulWidget {
   final User user;
@@ -24,20 +29,36 @@ class PromptsStep extends StatefulWidget {
 class _PromptsStepState extends State<PromptsStep> {
   final List<Prompt?> _selectedPrompts = [null, null, null];
   final Map<int, TextEditingController> _controllers = {};
+  VoicePrompt? _voicePrompt;
   bool _isLoading = false;
+  bool _isPlaying = false;
+
+  // For voice playback
+  late AudioPlayer _audioPlayer;
 
   @override
   void initState() {
     super.initState();
     _loadExistingPrompts();
-    for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 3; i++) {
       _controllers[i] = TextEditingController();
     }
+    _audioPlayer = AudioPlayer();
+    
+    // Listen for playback completion
+    _audioPlayer.playerStateStream.listen((state) {
+      if (mounted && state.processingState == ProcessingState.completed) {
+        setState(() => _isPlaying = false);
+      }
+    });
   }
 
   @override
   void dispose() {
-    _controllers.values.forEach((controller) => controller.dispose());
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -45,190 +66,44 @@ class _PromptsStepState extends State<PromptsStep> {
     if (widget.initialData['prompts'] != null) {
       final List<dynamic> prompts = widget.initialData['prompts'];
       for (int i = 0; i < prompts.length && i < 3; i++) {
-        setState(() {
-          _selectedPrompts[i] = Prompt.fromMap(prompts[i]);
-          _controllers[i]?.text = prompts[i]['text'] ?? '';
-        });
+        _selectedPrompts[i] = Prompt.fromMap(prompts[i]);
+        _controllers[i]?.text = prompts[i]['text'] ?? '';
       }
+    }
+    if (widget.initialData['voicePrompt'] != null) {
+      _voicePrompt = VoicePrompt.fromMap(widget.initialData['voicePrompt']);
     }
   }
 
+  int get _filledCount => _selectedPrompts.where((p) => p != null).length;
+
   void _selectPrompt(int slotIndex) {
-    showModalBottomSheet(
+    PromptCategoryPicker.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _buildCategoryPicker(slotIndex),
-    );
-  }
-
-  Widget _buildCategoryPicker(int slotIndex) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 16),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Choose a Category',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: ListView.builder(
-              itemCount: PromptCategory.all.length,
-              itemBuilder: (context, index) {
-                final category = PromptCategory.all[index];
-                return ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0039A6).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.chat_bubble_outline,
-                      color: Color(0xFF0039A6),
-                    ),
-                  ),
-                  title: Text(category),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showPromptsForCategory(slotIndex, category);
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPromptsForCategory(int slotIndex, String category) {
-    final prompts = PromptTemplates.prompts[category] ?? [];
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              category,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: ListView.builder(
-                itemCount: prompts.length,
-                itemBuilder: (context, index) {
-                  final promptText = prompts[index];
-                  final isSelected = _selectedPrompts.any(
-                    (p) => p?.id == '$category-$promptText',
-                  );
-                  
-                  return ListTile(
-                    title: Text(promptText),
-                    trailing: isSelected
-                        ? const Icon(Icons.check_circle, color: Color(0xFF0039A6))
-                        : null,
-                    enabled: !isSelected,
-                    onTap: isSelected
-                        ? null
-                        : () {
-                            Navigator.pop(context);
-                            _showAnswerDialog(slotIndex, category, promptText);
-                          },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAnswerDialog(int slotIndex, String category, String promptText) {
-    _controllers[slotIndex]?.clear();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(promptText),
-        content: TextField(
-          controller: _controllers[slotIndex],
-          maxLength: 100,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'Your answer...',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (_controllers[slotIndex]!.text.trim().isNotEmpty) {
+      onCategorySelected: (categoryName) {
+        PromptSelector.show(
+          context: context,
+          categoryName: categoryName,
+          selectedPrompts: _selectedPrompts,
+          onPromptSelected: (question) {
+            PromptAnswerSheet.show(
+              context: context,
+              question: question,
+              controller: _controllers[slotIndex]!,
+              onSave: () {
                 setState(() {
                   _selectedPrompts[slotIndex] = Prompt(
-                    id: '$category-$promptText',
-                    category: category,
+                    id: '$categoryName-${question.hashCode}',
+                    category: categoryName,
+                    question: question,
                     text: _controllers[slotIndex]!.text.trim(),
                   );
                 });
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+              },
+            );
+          },
+        );
+      },
     );
   }
 
@@ -239,13 +114,142 @@ class _PromptsStepState extends State<PromptsStep> {
     });
   }
 
+  void _showVoicePromptPicker() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.mic, color: const Color(0xFF0039A6), size: 24),
+                const SizedBox(width: 8),
+                const Text(
+                  'Voice Prompt',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0039A6),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Pick a question and record up to 10 seconds',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: PromptTemplates.voicePrompts.length,
+                itemBuilder: (context, index) {
+                  final question = PromptTemplates.voicePrompts[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      VoiceRecorderSheet.show(
+                        context: context,
+                        question: question,
+                        onSave: (voicePrompt) {
+                          setState(() => _voicePrompt = voicePrompt);
+                        },
+                      );
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: const Color(0xFF0039A6).withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.mic, color: Colors.orange, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              question,
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                          Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _playVoicePrompt() async {
+    if (_voicePrompt == null) return;
+
+    final path = _voicePrompt!.localPath ?? _voicePrompt!.audioUrl;
+    if (path == null) return;
+
+    try {
+      if (_isPlaying) {
+        await _audioPlayer.pause();
+        setState(() => _isPlaying = false);
+      } else {
+        if (_voicePrompt!.localPath != null) {
+          await _audioPlayer.setFilePath(path);
+        } else {
+          await _audioPlayer.setUrl(path);
+        }
+        setState(() => _isPlaying = true);
+        await _audioPlayer.play();
+      }
+    } catch (e) {
+      setState(() => _isPlaying = false);
+    }
+  }
+
   Future<void> _saveAndContinue() async {
     final filledPrompts = _selectedPrompts.where((p) => p != null).toList();
-    
-    if (filledPrompts.length < 3) {
+
+    if (filledPrompts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please complete at least 3 prompts (${filledPrompts.length}/3)'),
+        const SnackBar(
+          content: Text('Please complete at least 1 prompt'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -256,9 +260,29 @@ class _PromptsStepState extends State<PromptsStep> {
 
     try {
       final promptsData = filledPrompts.map((p) => p!.toMap()).toList();
-      
+
+      // Upload voice prompt if exists
+      Map<String, dynamic>? voicePromptData;
+      if (_voicePrompt != null && _voicePrompt!.localPath != null) {
+        final file = File(_voicePrompt!.localPath!);
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('users/${widget.user.uid}/voice_prompts/voice_prompt.aac');
+        await ref.putFile(file);
+        final url = await ref.getDownloadURL();
+
+        voicePromptData = {
+          'question': _voicePrompt!.question,
+          'audioUrl': url,
+          'durationSeconds': _voicePrompt!.durationSeconds,
+        };
+      } else if (_voicePrompt != null && _voicePrompt!.audioUrl != null) {
+        voicePromptData = _voicePrompt!.toMap();
+      }
+
       final data = {
         'prompts': promptsData,
+        if (voicePromptData != null) 'voicePrompt': voicePromptData,
         'onboardingStep': 16,
       };
 
@@ -273,10 +297,7 @@ class _PromptsStepState extends State<PromptsStep> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving prompts: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error saving prompts: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -288,109 +309,108 @@ class _PromptsStepState extends State<PromptsStep> {
 
   @override
   Widget build(BuildContext context) {
-    final filledCount = _selectedPrompts.where((p) => p != null).length;
-    
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF0039A6)),
-          onPressed: widget.onBack,
-        ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+    return Column(
+      children: [
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(30),
+                topRight: Radius.circular(30),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const SizedBox(height: 16),
                   const Text(
-                    'Choose Prompts',
+                    'Express Yourself',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF0039A6),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Select at least 3 prompts to showcase your personality',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                    ),
-                  ),
                   const SizedBox(height: 8),
                   Text(
-                    '$filledCount/3 completed',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: filledCount >= 3 ? Colors.green : Colors.orange,
-                      fontWeight: FontWeight.w600,
+                    'Add at least 1 prompt to show off your personality',
+                    style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Progress indicator
+                  _buildProgressBadge(),
+
+                  const SizedBox(height: 20),
+
+                  // Text Prompts - use Expanded to fill available space
+                  Expanded(
+                    child: Column(
+                      children: [
+                        for (int i = 0; i < 3; i++) ...[
+                          Expanded(
+                            child: PromptSlotCard(
+                              prompt: _selectedPrompts[i],
+                              index: i,
+                              onTap: () => _selectPrompt(i),
+                              onRemove: () => _removePrompt(i),
+                            ),
+                          ),
+                          if (i < 2) const SizedBox(height: 10),
+                        ],
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 30),
-                  
-                  // Three prompt slots
-                  for (int i = 0; i < 3; i++) ...[
-                    _buildPromptSlot(i),
-                    if (i < 2) const SizedBox(height: 16),
-                  ],
+
+                  const SizedBox(height: 16),
+
+                  // Voice Prompt Section
+                  _buildVoicePromptSection(),
                 ],
               ),
             ),
           ),
-          
-          // Bottom button
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveAndContinue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0039A6),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text(
-                          'Continue',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-              ),
+        ),
+        OnboardingBottomBar(
+          onBack: widget.onBack,
+          onContinue: _saveAndContinue,
+          isLoading: _isLoading,
+          canContinue: _filledCount >= 1,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProgressBadge() {
+    final isComplete = _filledCount >= 1;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: isComplete
+            ? Colors.green.withValues(alpha: 0.1)
+            : Colors.orange.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isComplete ? Icons.check_circle : Icons.edit,
+            size: 18,
+            color: isComplete ? Colors.green[700] : Colors.orange[700],
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '$_filledCount prompt${_filledCount == 1 ? '' : 's'} added',
+            style: TextStyle(
+              fontSize: 14,
+              color: isComplete ? Colors.green[700] : Colors.orange[700],
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -398,105 +418,82 @@ class _PromptsStepState extends State<PromptsStep> {
     );
   }
 
-  Widget _buildPromptSlot(int index) {
-    final prompt = _selectedPrompts[index];
-    
-    if (prompt == null) {
-      return GestureDetector(
-        onTap: () => _selectPrompt(index),
-        child: Container(
-          height: 120,
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Colors.grey[300]!,
-              width: 2,
-              style: BorderStyle.solid,
-            ),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.add_circle_outline,
-                  size: 32,
-                  color: Colors.grey[400],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Add Prompt ${index + 1}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
+  Widget _buildVoicePromptSection() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFF0039A6).withValues(alpha: 0.1),
-            const Color(0xFF0039A6).withValues(alpha: 0.05),
+            Colors.orange.withValues(alpha: 0.08),
+            Colors.deepOrange.withValues(alpha: 0.05),
           ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFF0039A6).withValues(alpha: 0.3),
-          width: 2,
-        ),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(
-                  prompt.category,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF0039A6),
-                    fontWeight: FontWeight.w600,
-                  ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
                 ),
+                child: const Icon(Icons.mic, color: Colors.deepOrange, size: 20),
               ),
-              IconButton(
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: () => _removePrompt(index),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Voice Prompt',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      'Optional • Up to 10 seconds',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            prompt.id.split('-').last,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+          const SizedBox(height: 14),
+
+          if (_voicePrompt != null)
+            VoicePromptCard(
+              voicePrompt: _voicePrompt!,
+              isPlaying: _isPlaying,
+              onPlay: _playVoicePrompt,
+              onRemove: () => setState(() => _voicePrompt = null),
+            )
+          else
+            GestureDetector(
+              onTap: _showVoicePromptPicker,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.add, color: Colors.orange[700], size: 22),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Add Voice Recording',
+                      style: TextStyle(color: Colors.orange[700], fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            prompt.text,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[800],
-            ),
-          ),
         ],
       ),
     );

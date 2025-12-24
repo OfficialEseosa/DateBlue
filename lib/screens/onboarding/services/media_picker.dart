@@ -86,7 +86,7 @@ class MediaPicker {
     try {
       final croppedFile = await ImageCropper().cropImage(
         sourcePath: imagePath,
-        aspectRatio: const CropAspectRatio(ratioX: 9, ratioY: 16),
+        aspectRatio: const CropAspectRatio(ratioX: 3, ratioY: 4),
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop Photo',

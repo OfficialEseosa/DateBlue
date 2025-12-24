@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/media_item.dart';
+import '../../../widgets/cached_image.dart';
 
 class MediaSlotWidget extends StatelessWidget {
   final MediaItem? media;
@@ -162,22 +163,27 @@ class MediaSlotWidget extends StatelessWidget {
       return Image.file(
         File(media!.path!),
         fit: BoxFit.cover,
+        cacheHeight: 400,  // Cache at reasonable size
+        cacheWidth: 300,
       );
     } else if (media!.url != null) {
-      return Image.network(
-        media!.url!,
+      return CachedImage(
+        imageUrl: media!.url,
         fit: BoxFit.cover,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Center(
-            child: CircularProgressIndicator(
-              value: loadingProgress.expectedTotalBytes != null
-                  ? loadingProgress.cumulativeBytesLoaded /
-                      loadingProgress.expectedTotalBytes!
-                  : null,
-            ),
-          );
-        },
+        placeholder: Container(
+          color: Colors.grey[200],
+          child: const Center(
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+        errorWidget: Container(
+          color: Colors.grey[300],
+          child: Icon(
+            media!.type == MediaType.video ? Icons.videocam : Icons.image,
+            size: 28,
+            color: Colors.grey[600],
+          ),
+        ),
       );
     } else {
       return Container(

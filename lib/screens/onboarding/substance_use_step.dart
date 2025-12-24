@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../widgets/onboarding_bottom_bar.dart';
 
 class SubstanceUseStep extends StatefulWidget {
   final User user;
@@ -68,11 +69,14 @@ class _SubstanceUseStepState extends State<SubstanceUseStep> {
     _showOnProfile = widget.initialData['showSubstanceUseOnProfile'] ?? true;
   }
 
+  bool get _hasAnsweredAll =>
+      _drinkingStatus != null &&
+      _smokingStatus != null &&
+      _weedStatus != null &&
+      _drugStatus != null;
+
   Future<void> _saveAndContinue() async {
-    if (_drinkingStatus == null ||
-        _smokingStatus == null ||
-        _weedStatus == null ||
-        _drugStatus == null) {
+    if (!_hasAnsweredAll) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please answer all questions'),
@@ -118,6 +122,150 @@ class _SubstanceUseStepState extends State<SubstanceUseStep> {
     }
   }
 
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(30),
+                topRight: Radius.circular(30),
+              ),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Lifestyle',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0039A6),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Help others understand your lifestyle choices',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Drinking
+                  _buildQuestionSection(
+                    title: 'Do you drink?',
+                    icon: Icons.local_bar,
+                    options: _drinkingOptions,
+                    selectedValue: _drinkingStatus,
+                    onSelected: (value) {
+                      setState(() => _drinkingStatus = value);
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Smoking
+                  _buildQuestionSection(
+                    title: 'Do you smoke tobacco?',
+                    icon: Icons.smoking_rooms,
+                    options: _smokingOptions,
+                    selectedValue: _smokingStatus,
+                    onSelected: (value) {
+                      setState(() => _smokingStatus = value);
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Weed
+                  _buildQuestionSection(
+                    title: 'Do you smoke weed?',
+                    icon: Icons.local_florist,
+                    options: _weedOptions,
+                    selectedValue: _weedStatus,
+                    onSelected: (value) {
+                      setState(() => _weedStatus = value);
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Drugs
+                  _buildQuestionSection(
+                    title: 'Do you use drugs?',
+                    icon: Icons.medication,
+                    options: _drugOptions,
+                    selectedValue: _drugStatus,
+                    onSelected: (value) {
+                      setState(() => _drugStatus = value);
+                    },
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Info card
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue[100]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: Colors.blue[700],
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Your honest answers help find compatible matches',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.blue[700],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Visibility toggle
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    child: _hasAnsweredAll
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: 20),
+                            child: _buildVisibilityToggle(),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        OnboardingBottomBar(
+          onBack: widget.onBack,
+          onContinue: _saveAndContinue,
+          isLoading: _isLoading,
+          canContinue: _hasAnsweredAll,
+        ),
+      ],
+    );
+  }
+
   Widget _buildQuestionSection({
     required String title,
     required IconData icon,
@@ -146,7 +294,7 @@ class _SubstanceUseStepState extends State<SubstanceUseStep> {
             Text(
               title,
               style: const TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,
               ),
@@ -159,12 +307,12 @@ class _SubstanceUseStepState extends State<SubstanceUseStep> {
           runSpacing: 8,
           children: options.map((option) {
             final isSelected = selectedValue == option;
-            return InkWell(
+            return GestureDetector(
               onTap: () => onSelected(option),
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
+                  horizontal: 14,
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
@@ -182,7 +330,7 @@ class _SubstanceUseStepState extends State<SubstanceUseStep> {
                 child: Text(
                   option,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: isSelected ? Colors.white : Colors.black87,
                   ),
@@ -195,264 +343,45 @@ class _SubstanceUseStepState extends State<SubstanceUseStep> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final hasAnsweredAll = _drinkingStatus != null &&
-        _smokingStatus != null &&
-        _weedStatus != null &&
-        _drugStatus != null;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF0039A6)),
-          onPressed: widget.onBack,
-        ),
+  Widget _buildVisibilityToggle() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
       ),
-      body: Column(
+      child: Row(
         children: [
           Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Lifestyle',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0039A6),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Help others understand your lifestyle choices',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-
-                    // Drinking
-                    _buildQuestionSection(
-                      title: 'Do you drink?',
-                      icon: Icons.local_bar,
-                      options: _drinkingOptions,
-                      selectedValue: _drinkingStatus,
-                      onSelected: (value) {
-                        setState(() => _drinkingStatus = value);
-                      },
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Smoking
-                    _buildQuestionSection(
-                      title: 'Do you smoke tobacco?',
-                      icon: Icons.smoking_rooms,
-                      options: _smokingOptions,
-                      selectedValue: _smokingStatus,
-                      onSelected: (value) {
-                        setState(() => _smokingStatus = value);
-                      },
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Weed
-                    _buildQuestionSection(
-                      title: 'Do you smoke weed?',
-                      icon: Icons.local_florist,
-                      options: _weedOptions,
-                      selectedValue: _weedStatus,
-                      onSelected: (value) {
-                        setState(() => _weedStatus = value);
-                      },
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Drugs
-                    _buildQuestionSection(
-                      title: 'Do you use drugs?',
-                      icon: Icons.medication,
-                      options: _drugOptions,
-                      selectedValue: _drugStatus,
-                      onSelected: (value) {
-                        setState(() => _drugStatus = value);
-                      },
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Info card
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.blue[50]!,
-                            Colors.blue[100]!.withValues(alpha: 0.3),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue[100]!),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.info_outline,
-                              color: Color(0xFF0039A6),
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Your honest answers help find compatible matches with similar lifestyles',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[700],
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Profile visibility toggle
-                    if (hasAnsweredAll) ...[
-                      const SizedBox(height: 20),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[50],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey[200]!),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: _showOnProfile
-                                    ? const Color(0xFF0039A6).withValues(alpha: 0.1)
-                                    : Colors.grey[200],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                _showOnProfile
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                                color: _showOnProfile
-                                    ? const Color(0xFF0039A6)
-                                    : Colors.grey[600],
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Show on profile',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Let others see your lifestyle choices',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Switch(
-                              value: _showOnProfile,
-                              onChanged: (value) {
-                                setState(() => _showOnProfile = value);
-                              },
-                              activeThumbColor: const Color(0xFF0039A6),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Show on profile',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
                 ),
-              ),
-            ),
-          ),
-
-          // Bottom button
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
+                const SizedBox(height: 4),
+                Text(
+                  'Let others see your lifestyle choices',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                  ),
                 ),
               ],
             ),
-            child: SafeArea(
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveAndContinue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0039A6),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text(
-                          'Continue',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-              ),
-            ),
+          ),
+          Switch(
+            value: _showOnProfile,
+            onChanged: (value) {
+              setState(() => _showOnProfile = value);
+            },
+            activeThumbColor: const Color(0xFF0039A6),
           ),
         ],
       ),

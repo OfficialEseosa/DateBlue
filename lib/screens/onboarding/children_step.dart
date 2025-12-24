@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../widgets/onboarding_bottom_bar.dart';
 
 class ChildrenStep extends StatefulWidget {
   final User user;
@@ -31,13 +32,11 @@ class _ChildrenStepState extends State<ChildrenStep> {
       'value': 'no_children',
       'label': "Don't have children",
       'icon': Icons.person_outline,
-      'description': 'No kids',
     },
     {
       'value': 'have_children',
       'label': 'Have children',
       'icon': Icons.family_restroom,
-      'description': 'I am a parent',
     },
   ];
 
@@ -46,25 +45,21 @@ class _ChildrenStepState extends State<ChildrenStep> {
       'value': 'want_children',
       'label': 'Want children',
       'icon': Icons.child_care,
-      'description': 'Looking to have kids',
     },
     {
       'value': 'dont_want_children',
-      'label': "Don't want children",
+      'label': "Don't want",
       'icon': Icons.do_not_disturb,
-      'description': 'Not interested in having kids',
     },
     {
       'value': 'open_to_children',
-      'label': 'Open to children',
+      'label': 'Open to it',
       'icon': Icons.help_outline,
-      'description': 'Would consider it',
     },
     {
       'value': 'not_sure',
       'label': 'Not sure yet',
       'icon': Icons.question_mark,
-      'description': 'Still thinking about it',
     },
   ];
 
@@ -143,12 +138,12 @@ class _ChildrenStepState extends State<ChildrenStep> {
                 topRight: Radius.circular(30),
               ),
             ),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(30.0),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
                   const Text(
                     'Family & Future',
                     style: TextStyle(
@@ -157,339 +152,258 @@ class _ChildrenStepState extends State<ChildrenStep> {
                       color: Color(0xFF0039A6),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Text(
-                    'Let others know about your family status',
+                    'Let others know about your family plans',
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.grey[600],
                     ),
                   ),
-                  const SizedBox(height: 30),
+                  
+                  const SizedBox(height: 24),
 
                   // Section 1: Do you have children?
                   const Text(
                     'Do you have children?',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 15),
-
-                  SizedBox(
-                    height: 130,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _childrenOptions.length,
-                      itemBuilder: (context, index) {
-                        final option = _childrenOptions[index];
-                        final isSelected = _selectedChildren == option['value'];
-
-                        return Padding(
+                  const SizedBox(height: 12),
+                  
+                  // Horizontal options for "have children"
+                  Row(
+                    children: _childrenOptions.map((option) {
+                      final isSelected = _selectedChildren == option['value'];
+                      return Expanded(
+                        child: Padding(
                           padding: EdgeInsets.only(
-                            right: index < _childrenOptions.length - 1 ? 12.0 : 0,
+                            right: option == _childrenOptions.last ? 0 : 12,
                           ),
-                          child: InkWell(
-                            onTap: () {
-                              setState(() {
-                                if (_selectedChildren == option['value']) {
-                                  _selectedChildren = null;
-                                } else {
-                                  _selectedChildren = option['value'];
-                                }
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              width: 140,
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? const Color(0xFF0039A6).withValues(alpha: 0.1)
-                                    : Colors.white,
-                                border: Border.all(
-                                  color: isSelected
-                                      ? const Color(0xFF0039A6)
-                                      : Colors.grey[300]!,
-                                  width: isSelected ? 2 : 1,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    option['icon'] as IconData,
-                                    color: isSelected
-                                        ? const Color(0xFF0039A6)
-                                        : Colors.grey[700],
-                                    size: 32,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    option['label']!,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: isSelected
-                                          ? const Color(0xFF0039A6)
-                                          : Colors.black87,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                          child: _buildOptionCard(option, isSelected, () {
+                            setState(() {
+                              _selectedChildren = option['value'];
+                            });
+                          }),
+                        ),
+                      );
+                    }).toList(),
                   ),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 24),
 
                   // Section 2: Do you want children?
                   const Text(
-                    'Do you want children in the future?',
+                    'Do you want children?',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 15),
-
-                  SizedBox(
-                    height: 130,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _wantChildrenOptions.length,
-                      itemBuilder: (context, index) {
-                        final option = _wantChildrenOptions[index];
-                        final isSelected = _selectedWantChildren == option['value'];
-
-                        return Padding(
-                          padding: EdgeInsets.only(
-                            right: index < _wantChildrenOptions.length - 1 ? 12.0 : 0,
-                          ),
-                          child: InkWell(
-                            onTap: () {
-                              setState(() {
-                                if (_selectedWantChildren == option['value']) {
-                                  _selectedWantChildren = null;
-                                } else {
-                                  _selectedWantChildren = option['value'];
-                                }
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              width: 140,
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? const Color(0xFF0039A6).withValues(alpha: 0.1)
-                                    : Colors.white,
-                                border: Border.all(
-                                  color: isSelected
-                                      ? const Color(0xFF0039A6)
-                                      : Colors.grey[300]!,
-                                  width: isSelected ? 2 : 1,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    option['icon'] as IconData,
-                                    color: isSelected
-                                        ? const Color(0xFF0039A6)
-                                        : Colors.grey[700],
-                                    size: 32,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    option['label']!,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: isSelected
-                                          ? const Color(0xFF0039A6)
-                                          : Colors.black87,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // Visibility toggle
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[200]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Show on profile',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Others will see this on your profile',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Switch(
-                          value: _showOnProfile,
-                          onChanged: (value) {
-                            setState(() {
-                              _showOnProfile = value;
-                            });
-                          },
-                          activeThumbColor: const Color(0xFF0039A6),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  // Info about privacy
-                  if (!_showOnProfile)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
+                  const SizedBox(height: 12),
+                  
+                  // 2x2 Grid for "want children" options
+                  Column(
+                    children: [
+                      Row(
                         children: [
-                          Icon(
-                            Icons.info_outline,
-                            size: 20,
-                            color: Colors.blue[700],
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'This information will be saved but hidden from your profile. You can change this anytime in settings.',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.blue[700],
-                              ),
-                            ),
-                          ),
+                          Expanded(child: _buildWantChildrenOption(_wantChildrenOptions[0])),
+                          const SizedBox(width: 12),
+                          Expanded(child: _buildWantChildrenOption(_wantChildrenOptions[1])),
                         ],
                       ),
-                    ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(child: _buildWantChildrenOption(_wantChildrenOptions[2])),
+                          const SizedBox(width: 12),
+                          Expanded(child: _buildWantChildrenOption(_wantChildrenOptions[3])),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  const Spacer(),
+
+                  // Visibility toggle
+                  _buildVisibilityToggle(),
+                  
+                  const SizedBox(height: 12),
                 ],
               ),
             ),
           ),
         ),
-
-        // Bottom buttons
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Back button
-              SizedBox(
-                height: 50,
-                width: 50,
-                child: OutlinedButton(
-                  onPressed: widget.onBack,
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    side: BorderSide(color: Colors.grey[300]!),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.arrow_back,
-                    color: Colors.grey[700],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Continue button
-              Expanded(
-                child: SizedBox(
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _saveAndContinue,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0039A6),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text(
-                            'Continue',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        OnboardingBottomBar(
+          onBack: widget.onBack,
+          onContinue: _saveAndContinue,
+          isLoading: _isLoading,
+          canContinue: _selectedChildren != null && _selectedWantChildren != null,
         ),
       ],
+    );
+  }
+
+  Widget _buildOptionCard(Map<String, dynamic> option, bool isSelected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF0039A6).withValues(alpha: 0.1)
+              : Colors.white,
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF0039A6)
+                : Colors.grey[300]!,
+            width: isSelected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? const Color(0xFF0039A6)
+                    : Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                option['icon'] as IconData,
+                color: isSelected ? Colors.white : Colors.grey[700],
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              option['label']!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isSelected
+                    ? const Color(0xFF0039A6)
+                    : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWantChildrenOption(Map<String, dynamic> option) {
+    final isSelected = _selectedWantChildren == option['value'];
+    
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedWantChildren = option['value'];
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF0039A6).withValues(alpha: 0.1)
+              : Colors.white,
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF0039A6)
+                : Colors.grey[300]!,
+            width: isSelected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? const Color(0xFF0039A6)
+                    : Colors.grey[100],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                option['icon'] as IconData,
+                color: isSelected ? Colors.white : Colors.grey[700],
+                size: 24,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              option['label']!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isSelected
+                    ? const Color(0xFF0039A6)
+                    : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVisibilityToggle() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Show on profile',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Others will see your family preferences',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _showOnProfile,
+            onChanged: (value) {
+              setState(() => _showOnProfile = value);
+            },
+            activeThumbColor: const Color(0xFF0039A6),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/profile_data.dart';
 import '../../theme/date_blue_theme.dart';
 import 'campus_badge.dart';
@@ -148,29 +149,23 @@ class ProfileCard extends StatelessWidget {
 
   Widget _buildMainPhoto(String? photoUrl) {
     if (photoUrl != null) {
-      return Image.network(
-        photoUrl,
+      return CachedNetworkImage(
+        imageUrl: photoUrl,
         fit: BoxFit.cover,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            color: Colors.grey[200],
-            child: Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded /
-                        loadingProgress.expectedTotalBytes!
-                    : null,
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  DateBlueTheme.primaryBlue,
-                ),
+        placeholder: (context, url) => Container(
+          color: Colors.grey[200],
+          child: const Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                DateBlueTheme.primaryBlue,
               ),
             ),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) {
-          return _buildPlaceholder();
-        },
+          ),
+        ),
+        errorWidget: (context, url, error) => _buildPlaceholder(),
+        fadeInDuration: const Duration(milliseconds: 200),
+        fadeOutDuration: const Duration(milliseconds: 100),
       );
     }
     return _buildPlaceholder();
