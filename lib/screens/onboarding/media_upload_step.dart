@@ -5,6 +5,7 @@ import 'models/media_item.dart';
 import 'services/media_picker.dart';
 import 'services/media_service.dart';
 import 'widgets/media_slot_widget.dart';
+import '../../widgets/onboarding_bottom_bar.dart';
 
 class MediaUploadStep extends StatefulWidget {
   final User user;
@@ -33,6 +34,8 @@ class _MediaUploadStepState extends State<MediaUploadStep> {
     super.initState();
     _loadExistingMedia();
   }
+
+  bool get _hasAtLeastOneMedia => _mediaSlots.any((item) => item != null);
 
   Future<void> _loadExistingMedia() async {
     if (widget.initialData['mediaUrls'] != null) {
@@ -288,9 +291,7 @@ class _MediaUploadStepState extends State<MediaUploadStep> {
   }
 
   Future<void> _saveAndContinue() async {
-    final hasAtLeastOneMedia = _mediaSlots.any((item) => item != null);
-    
-    if (!hasAtLeastOneMedia) {
+    if (!_hasAtLeastOneMedia) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please add at least one photo or video'),
@@ -354,220 +355,168 @@ class _MediaUploadStepState extends State<MediaUploadStep> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF0039A6)),
-          onPressed: widget.onBack,
-        ),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Add Photos & Videos',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0039A6),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Upload up to 6 photos or videos',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
+    return Column(
+      children: [
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(30),
+                topRight: Radius.circular(30),
+              ),
             ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: GridView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                        childAspectRatio: 9 / 16,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Add Photos & Videos',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0039A6),
+                        ),
                       ),
-                      itemCount: 6,
-                      itemBuilder: (context, index) {
-                        final media = _mediaSlots[index];
-                        final isFirstItem = index == 0 && media != null;
-
-                        // Only allow dragging if media exists
-                        if (media != null) {
-                          return LongPressDraggable<int>(
-                            data: index,
-                            feedback: Material(
-                              elevation: 4,
-                              borderRadius: BorderRadius.circular(12),
-                              child: SizedBox(
-                                width: (MediaQuery.of(context).size.width - 60) / 3,
-                                height: ((MediaQuery.of(context).size.width - 60) / 3) * (16 / 9),
-                                child: Opacity(
-                                  opacity: 0.7,
-                                  child: MediaSlotWidget(
-                                    media: media,
-                                    index: index,
-                                    isFirstItem: isFirstItem,
-                                    onEdit: () => _editMedia(index),
-                                  ),
-                                ),
-                              ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Upload up to 6 photos or videos',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: GridView.builder(
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                              childAspectRatio: 3 / 4,
                             ),
-                            childWhenDragging: Opacity(
-                              opacity: 0.3,
-                              child: MediaSlotWidget(
+                            itemCount: 6,
+                            itemBuilder: (context, index) {
+                              final media = _mediaSlots[index];
+                              final isFirstItem = index == 0 && media != null;
+
+                              // Only allow dragging if media exists
+                              if (media != null) {
+                                return LongPressDraggable<int>(
+                                  data: index,
+                                  feedback: Material(
+                                    elevation: 4,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: SizedBox(
+                                      width: (MediaQuery.of(context).size.width - 60) / 3,
+                                      height: ((MediaQuery.of(context).size.width - 60) / 3) * (4 / 3),
+                                      child: Opacity(
+                                        opacity: 0.7,
+                                        child: MediaSlotWidget(
+                                          media: media,
+                                          index: index,
+                                          isFirstItem: isFirstItem,
+                                          onEdit: () => _editMedia(index),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  childWhenDragging: Opacity(
+                                    opacity: 0.3,
+                                    child: MediaSlotWidget(
+                                      media: media,
+                                      index: index,
+                                      isFirstItem: isFirstItem,
+                                      onEdit: () => _editMedia(index),
+                                    ),
+                                  ),
+                                  child: DragTarget<int>(
+                                    onAcceptWithDetails: (details) {
+                                      final fromIndex = details.data;
+                                      setState(() {
+                                        final temp = _mediaSlots[fromIndex];
+                                        _mediaSlots[fromIndex] = _mediaSlots[index];
+                                        _mediaSlots[index] = temp;
+                                      });
+                                    },
+                                    builder: (context, candidateData, rejectedData) {
+                                      return MediaSlotWidget(
+                                        media: media,
+                                        index: index,
+                                        isFirstItem: isFirstItem,
+                                        onEdit: () => _editMedia(index),
+                                      );
+                                    },
+                                  ),
+                                );
+                              }
+
+                              // Empty slot - just tappable, not draggable
+                              return MediaSlotWidget(
                                 media: media,
                                 index: index,
                                 isFirstItem: isFirstItem,
-                                onEdit: () => _editMedia(index),
-                              ),
-                            ),
-                            child: DragTarget<int>(
-                              onAcceptWithDetails: (details) {
-                                final fromIndex = details.data;
-                                setState(() {
-                                  final temp = _mediaSlots[fromIndex];
-                                  _mediaSlots[fromIndex] = _mediaSlots[index];
-                                  _mediaSlots[index] = temp;
-                                });
-                              },
-                              builder: (context, candidateData, rejectedData) {
-                                return MediaSlotWidget(
-                                  media: media,
-                                  index: index,
-                                  isFirstItem: isFirstItem,
-                                  onEdit: () => _editMedia(index),
-                                );
-                              },
-                            ),
-                          );
-                        }
-
-                        // Empty slot - just tappable, not draggable
-                        return MediaSlotWidget(
-                          media: media,
-                          index: index,
-                          isFirstItem: isFirstItem,
-                          onTap: _addMedia,
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.blue[50]!,
-                          Colors.blue[100]!.withValues(alpha: 0.3),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue[100]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Icon(
-                            Icons.info_outline,
-                            color: Color(0xFF0039A6),
-                            size: 16,
+                                onTap: _addMedia,
+                              );
+                            },
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Long press and drag to reorder. First photo will be your main profile picture',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[700],
-                              height: 1.3,
-                            ),
+                        const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.blue[100]!),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: Colors.blue[700],
+                                size: 18,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Long press and drag to reorder. First photo will be your main profile picture',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.blue[700],
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-
-          // Bottom button
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
                 ),
               ],
             ),
-            child: SafeArea(
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveAndContinue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0039A6),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text(
-                          'Continue',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-              ),
-            ),
           ),
-        ],
-      ),
+        ),
+        OnboardingBottomBar(
+          onBack: widget.onBack,
+          onContinue: _saveAndContinue,
+          isLoading: _isLoading,
+          canContinue: _hasAtLeastOneMedia,
+        ),
+      ],
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../widgets/onboarding_bottom_bar.dart';
 
 class SexualityStep extends StatefulWidget {
   final User user;
@@ -26,51 +27,15 @@ class _SexualityStepState extends State<SexualityStep> {
   bool _isLoading = false;
 
   final List<Map<String, dynamic>> _sexualityOptions = [
-    {
-      'value': 'straight',
-      'label': 'Straight',
-      'icon': Icons.favorite,
-    },
-    {
-      'value': 'gay',
-      'label': 'Gay',
-      'icon': Icons.flag,
-    },
-    {
-      'value': 'lesbian',
-      'label': 'Lesbian',
-      'icon': Icons.flag,
-    },
-    {
-      'value': 'bisexual',
-      'label': 'Bisexual',
-      'icon': Icons.favorite_border,
-    },
-    {
-      'value': 'pansexual',
-      'label': 'Pansexual',
-      'icon': Icons.favorite,
-    },
-    {
-      'value': 'asexual',
-      'label': 'Asexual',
-      'icon': Icons.favorite_outline,
-    },
-    {
-      'value': 'queer',
-      'label': 'Queer',
-      'icon': Icons.auto_awesome,
-    },
-    {
-      'value': 'questioning',
-      'label': 'Questioning',
-      'icon': Icons.help_outline,
-    },
-    {
-      'value': 'other',
-      'label': 'Other',
-      'icon': Icons.more_horiz,
-    },
+    {'value': 'straight', 'label': 'Straight', 'icon': Icons.favorite},
+    {'value': 'gay', 'label': 'Gay', 'icon': Icons.flag},
+    {'value': 'lesbian', 'label': 'Lesbian', 'icon': Icons.flag},
+    {'value': 'bisexual', 'label': 'Bisexual', 'icon': Icons.favorite_border},
+    {'value': 'pansexual', 'label': 'Pansexual', 'icon': Icons.favorite},
+    {'value': 'asexual', 'label': 'Asexual', 'icon': Icons.favorite_outline},
+    {'value': 'queer', 'label': 'Queer', 'icon': Icons.auto_awesome},
+    {'value': 'questioning', 'label': 'Questioning', 'icon': Icons.help_outline},
+    {'value': 'other', 'label': 'Other', 'icon': Icons.more_horiz},
   ];
 
   @override
@@ -161,231 +126,202 @@ class _SexualityStepState extends State<SexualityStep> {
                   const SizedBox(height: 30),
 
                   // Sexuality selection cards
-                  ...List.generate(_sexualityOptions.length, (index) {
-                    final option = _sexualityOptions[index];
+                  ..._sexualityOptions.map((option) {
                     final isSelected = _selectedSexuality == option['value'];
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: InkWell(
-                        onTap: () {
-                          setState(() {
-                            _selectedSexuality = option['value'];
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(0xFF0039A6).withValues(alpha: 0.1)
-                                : Colors.white,
-                            border: Border.all(
-                              color: isSelected
-                                  ? const Color(0xFF0039A6)
-                                  : Colors.grey[300]!,
-                              width: isSelected ? 2 : 1,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            children: [
-                              // Icon
-                              Container(
-                                width: 50,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? const Color(0xFF0039A6)
-                                      : Colors.grey[100],
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  option['icon'] as IconData,
-                                  color: isSelected
-                                      ? const Color(0xFF0039A6)
-                                      : Colors.grey[700],
-                                  size: 28,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              // Sexuality label
-                              Expanded(
-                                child: Text(
-                                  option['label']!,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: isSelected
-                                        ? const Color(0xFF0039A6)
-                                        : Colors.black87,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
+                    return _buildSexualityCard(option, isSelected);
                   }),
 
                   const SizedBox(height: 30),
 
                   // Visibility toggle
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[200]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Show on profile',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Others will see your sexuality on your profile',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Switch(
-                          value: _showOnProfile,
-                          onChanged: (value) {
-                            setState(() {
-                              _showOnProfile = value;
-                            });
-                          },
-                          activeThumbColor: const Color(0xFF0039A6),
-                        ),
-                      ],
-                    ),
-                  ),
+                  _buildVisibilityToggle(),
 
                   const SizedBox(height: 15),
 
                   // Info about sexuality privacy
-                  if (!_showOnProfile)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            size: 20,
-                            color: Colors.blue[700],
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Your sexuality will be saved but hidden from your profile. You can change this anytime in settings.',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.blue[700],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    child: !_showOnProfile
+                        ? _buildPrivacyInfo()
+                        : const SizedBox.shrink(),
+                  ),
                 ],
               ),
             ),
           ),
         ),
+        OnboardingBottomBar(
+          onBack: widget.onBack,
+          onContinue: _saveAndContinue,
+          isLoading: _isLoading,
+          canContinue: _selectedSexuality != null,
+        ),
+      ],
+    );
+  }
 
-        // Bottom buttons
-        Container(
-          padding: const EdgeInsets.all(20),
+  Widget _buildSexualityCard(Map<String, dynamic> option, bool isSelected) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedSexuality = option['value'];
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
-              ),
-            ],
+            color: isSelected
+                ? const Color(0xFF0039A6).withValues(alpha: 0.1)
+                : Colors.white,
+            border: Border.all(
+              color: isSelected
+                  ? const Color(0xFF0039A6)
+                  : Colors.grey[300]!,
+              width: isSelected ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
             children: [
-              // Back button
-              SizedBox(
-                height: 50,
-                width: 50,
-                child: OutlinedButton(
-                  onPressed: widget.onBack,
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    side: BorderSide(color: Colors.grey[300]!),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.arrow_back,
-                    color: Colors.grey[700],
+              // Icon container
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFF0039A6)
+                      : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  option['icon'] as IconData,
+                  color: isSelected ? Colors.white : Colors.grey[700],
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Sexuality label
+              Expanded(
+                child: Text(
+                  option['label']!,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected
+                        ? const Color(0xFF0039A6)
+                        : Colors.black87,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              // Continue button
-              Expanded(
-                child: SizedBox(
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _saveAndContinue,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0039A6),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text(
-                            'Continue',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+              // Selection indicator
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isSelected 
+                      ? const Color(0xFF0039A6)
+                      : Colors.transparent,
+                  border: Border.all(
+                    color: isSelected 
+                        ? const Color(0xFF0039A6)
+                        : Colors.grey[400]!,
+                    width: 2,
                   ),
                 ),
+                child: isSelected 
+                    ? const Icon(
+                        Icons.check,
+                        size: 16,
+                        color: Colors.white,
+                      )
+                    : null,
               ),
             ],
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildVisibilityToggle() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Show on profile',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Others will see your sexuality on your profile',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _showOnProfile,
+            onChanged: (value) {
+              setState(() {
+                _showOnProfile = value;
+              });
+            },
+            activeThumbColor: const Color(0xFF0039A6),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrivacyInfo() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: 20,
+            color: Colors.blue[700],
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Your sexuality will be saved but hidden from your profile. You can change this anytime in settings.',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.blue[700],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../theme/date_blue_theme.dart';
 import 'campus_badge.dart';
 
@@ -31,37 +32,31 @@ class ProfilePhotoCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Photo
-            Image.network(
-              photoUrl,
+            // Photo with caching
+            CachedNetworkImage(
+              imageUrl: photoUrl,
               fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  color: Colors.grey[200],
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                          : null,
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        DateBlueTheme.primaryBlue,
-                      ),
+              placeholder: (context, url) => Container(
+                color: Colors.grey[200],
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      DateBlueTheme.primaryBlue,
                     ),
                   ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey[300],
-                  child: const Icon(
-                    Icons.broken_image,
-                    size: 64,
-                    color: Colors.grey,
-                  ),
-                );
-              },
+                ),
+              ),
+              errorWidget: (context, url, error) => Container(
+                color: Colors.grey[300],
+                child: const Icon(
+                  Icons.broken_image,
+                  size: 64,
+                  color: Colors.grey,
+                ),
+              ),
+              fadeInDuration: const Duration(milliseconds: 200),
+              fadeOutDuration: const Duration(milliseconds: 100),
             ),
 
             // Name overlay for first photo

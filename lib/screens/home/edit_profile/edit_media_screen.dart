@@ -374,7 +374,7 @@ class _EditMediaScreenState extends State<EditMediaScreen> {
                   crossAxisCount: 3,
                   crossAxisSpacing: 8,
                   mainAxisSpacing: 8,
-                  childAspectRatio: 9 / 16,
+                  childAspectRatio: 3 / 4,
                 ),
                 itemCount: 6,
                 itemBuilder: (context, index) {
@@ -390,7 +390,7 @@ class _EditMediaScreenState extends State<EditMediaScreen> {
                         borderRadius: BorderRadius.circular(12),
                         child: SizedBox(
                           width: (MediaQuery.of(context).size.width - 60) / 3,
-                          height: ((MediaQuery.of(context).size.width - 60) / 3) * (16 / 9),
+                          height: ((MediaQuery.of(context).size.width - 60) / 3) * (4 / 3),
                           child: Opacity(
                             opacity: 0.7,
                             child: MediaSlotWidget(

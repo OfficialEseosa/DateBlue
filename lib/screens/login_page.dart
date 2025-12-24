@@ -35,7 +35,7 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   Player? _player;
   VideoController? _videoController;
   bool _videoReady = false;
@@ -44,7 +44,24 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initVideoPlayer();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _resumeVideoPlayback();
+    }
+  }
+
+  Future<void> _resumeVideoPlayback() async {
+    if (_player != null && mounted) {
+      if (!_player!.state.playing) {
+        await _player!.play();
+      }
+    }
   }
 
   Future<void> _initVideoPlayer() async {
@@ -118,6 +135,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     // Don't dispose the preloaded player
     if (_player != null && _player != LoginPage._preloadedPlayer) {
       _player?.dispose();

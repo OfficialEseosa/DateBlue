@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../widgets/onboarding_bottom_bar.dart';
 
 class EthnicityStep extends StatefulWidget {
   final User user;
@@ -25,52 +26,17 @@ class _EthnicityStepState extends State<EthnicityStep> {
   bool _showOnProfile = true;
   bool _isLoading = false;
 
+  // Simple list without icons - cleaner look
   final List<Map<String, dynamic>> _ethnicityOptions = [
-    {
-      'value': 'asian',
-      'label': 'Asian',
-      'icon': Icons.public,
-    },
-    {
-      'value': 'black',
-      'label': 'Black / African Descent',
-      'icon': Icons.public,
-    },
-    {
-      'value': 'hispanic',
-      'label': 'Hispanic / Latino',
-      'icon': Icons.public,
-    },
-    {
-      'value': 'indigenous',
-      'label': 'Indigenous / Native',
-      'icon': Icons.nature_people,
-    },
-    {
-      'value': 'middle_eastern',
-      'label': 'Middle Eastern',
-      'icon': Icons.public,
-    },
-    {
-      'value': 'pacific_islander',
-      'label': 'Pacific Islander',
-      'icon': Icons.public,
-    },
-    {
-      'value': 'south_asian',
-      'label': 'South Asian',
-      'icon': Icons.public,
-    },
-    {
-      'value': 'white',
-      'label': 'White / Caucasian',
-      'icon': Icons.public,
-    },
-    {
-      'value': 'other',
-      'label': 'Other',
-      'icon': Icons.more_horiz,
-    },
+    {'value': 'asian', 'label': 'Asian'},
+    {'value': 'black', 'label': 'Black / African Descent'},
+    {'value': 'hispanic', 'label': 'Hispanic / Latino'},
+    {'value': 'indigenous', 'label': 'Indigenous / Native'},
+    {'value': 'middle_eastern', 'label': 'Middle Eastern'},
+    {'value': 'pacific_islander', 'label': 'Pacific Islander'},
+    {'value': 'south_asian', 'label': 'South Asian'},
+    {'value': 'white', 'label': 'White / Caucasian'},
+    {'value': 'other', 'label': 'Other'},
   ];
 
   @override
@@ -171,257 +137,211 @@ class _EthnicityStepState extends State<EthnicityStep> {
                       color: Colors.grey[600],
                     ),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 24),
 
-                  // Ethnicity selection cards
-                  ...List.generate(_ethnicityOptions.length, (index) {
-                    final option = _ethnicityOptions[index];
+                  // Ethnicity selection cards - clean design without icons
+                  ..._ethnicityOptions.map((option) {
                     final isSelected = _selectedEthnicities.contains(option['value']);
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: InkWell(
-                        onTap: () => _toggleEthnicity(option['value']!),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(0xFF0039A6).withValues(alpha: 0.1)
-                                : Colors.white,
-                            border: Border.all(
-                              color: isSelected
-                                  ? const Color(0xFF0039A6)
-                                  : Colors.grey[300]!,
-                              width: isSelected ? 2 : 1,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            children: [
-                              // Icon
-                              Container(
-                                width: 50,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? const Color(0xFF0039A6)
-                                      : Colors.grey[100],
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Center(
-                                  child: Icon(
-                                    option['icon'] as IconData,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : Colors.grey[700],
-                                    size: 24,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              // Ethnicity label
-                              Expanded(
-                                child: Text(
-                                  option['label']!,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: isSelected
-                                        ? const Color(0xFF0039A6)
-                                        : Colors.black87,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
+                    return _buildEthnicityCard(option, isSelected);
                   }),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 24),
 
                   // Visibility toggle
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[200]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Show on profile',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Others will see your ethnicity on your profile',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Switch(
-                          value: _showOnProfile,
-                          onChanged: (value) {
-                            setState(() {
-                              _showOnProfile = value;
-                            });
-                          },
-                          activeThumbColor: const Color(0xFF0039A6),
-                        ),
-                      ],
-                    ),
-                  ),
+                  _buildVisibilityToggle(),
 
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 12),
 
                   // Selected count indicator
-                  if (_selectedEthnicities.isNotEmpty)
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0039A6).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '${_selectedEthnicities.length} ${_selectedEthnicities.length == 1 ? 'ethnicity' : 'ethnicities'} selected',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF0039A6),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  const SizedBox(height: 15),
-
-                  // Info about ethnicity privacy
-                  if (!_showOnProfile)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            size: 20,
-                            color: Colors.blue[700],
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Your ethnicity will be saved but hidden from your profile. You can change this anytime in settings.',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.blue[700],
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    child: _selectedEthnicities.isNotEmpty
+                        ? Center(
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0039A6).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '${_selectedEthnicities.length} ${_selectedEthnicities.length == 1 ? 'ethnicity' : 'ethnicities'} selected',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF0039A6),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Privacy info
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    child: !_showOnProfile
+                        ? _buildPrivacyInfo()
+                        : const SizedBox.shrink(),
+                  ),
                 ],
               ),
             ),
           ),
         ),
+        OnboardingBottomBar(
+          onBack: widget.onBack,
+          onContinue: _saveAndContinue,
+          isLoading: _isLoading,
+          canContinue: _selectedEthnicities.isNotEmpty,
+        ),
+      ],
+    );
+  }
 
-        // Bottom buttons
-        Container(
-          padding: const EdgeInsets.all(20),
+  Widget _buildEthnicityCard(Map<String, dynamic> option, bool isSelected) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10.0),
+      child: GestureDetector(
+        onTap: () => _toggleEthnicity(option['value']!),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
-              ),
-            ],
+            color: isSelected
+                ? const Color(0xFF0039A6).withValues(alpha: 0.1)
+                : Colors.white,
+            border: Border.all(
+              color: isSelected
+                  ? const Color(0xFF0039A6)
+                  : Colors.grey[300]!,
+              width: isSelected ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
             children: [
-              // Back button
-              SizedBox(
-                height: 50,
-                width: 50,
-                child: OutlinedButton(
-                  onPressed: widget.onBack,
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    side: BorderSide(color: Colors.grey[300]!),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.arrow_back,
-                    color: Colors.grey[700],
+              // Ethnicity label
+              Expanded(
+                child: Text(
+                  option['label']!,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: isSelected
+                        ? const Color(0xFF0039A6)
+                        : Colors.black87,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              // Continue button
-              Expanded(
-                child: SizedBox(
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _saveAndContinue,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0039A6),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text(
-                            'Continue',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+              // Checkbox indicator
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  color: isSelected 
+                      ? const Color(0xFF0039A6)
+                      : Colors.transparent,
+                  border: Border.all(
+                    color: isSelected 
+                        ? const Color(0xFF0039A6)
+                        : Colors.grey[400]!,
+                    width: 2,
                   ),
                 ),
+                child: isSelected 
+                    ? const Icon(
+                        Icons.check,
+                        size: 16,
+                        color: Colors.white,
+                      )
+                    : null,
               ),
             ],
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildVisibilityToggle() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Show on profile',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Others will see your ethnicity on your profile',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _showOnProfile,
+            onChanged: (value) {
+              setState(() => _showOnProfile = value);
+            },
+            activeThumbColor: const Color(0xFF0039A6),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrivacyInfo() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: 20,
+            color: Colors.blue[700],
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Your ethnicity will be saved but hidden from your profile. You can change this anytime in settings.',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.blue[700],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

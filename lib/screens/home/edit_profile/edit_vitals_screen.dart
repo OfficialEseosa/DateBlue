@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../widgets/city_autocomplete_field.dart';
+import '../../../widgets/height_picker.dart';
 
 class EditVitalsScreen extends StatefulWidget {
   final User user;
@@ -611,13 +612,6 @@ class _EditVitalsScreenState extends State<EditVitalsScreen> {
   }
 
   Widget _buildHeightEditor() {
-    // Convert cm to feet/inches for display
-    final totalInches = (_heightCm / 2.54).round();
-    int feet = totalInches ~/ 12;
-    int inches = totalInches % 12;
-    if (feet < 4) feet = 4;
-    if (feet > 7) feet = 7;
-    
     return Column(
       children: [
         Container(
@@ -635,9 +629,9 @@ class _EditVitalsScreenState extends State<EditVitalsScreen> {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              // Display as feet'inches" and also cm
+              // Display current height in both formats
               Text(
-                "$feet'$inches\"",
+                HeightUtils.formatAsFeetInches(_heightCm),
                 style: const TextStyle(
                   fontSize: 48,
                   fontWeight: FontWeight.bold,
@@ -645,91 +639,23 @@ class _EditVitalsScreenState extends State<EditVitalsScreen> {
                 ),
               ),
               Text(
-                '($_heightCm cm)',
+                '(${HeightUtils.formatAsCm(_heightCm)})',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey[600],
                 ),
               ),
               const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      children: [
-                        const Text('Feet', style: TextStyle(color: Colors.grey)),
-                        const SizedBox(height: 8),
-                        Container(
-                          height: 150,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey[300]!),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: ListWheelScrollView(
-                            itemExtent: 40,
-                            diameterRatio: 1.5,
-                            physics: const FixedExtentScrollPhysics(),
-                            controller: FixedExtentScrollController(initialItem: feet - 4),
-                            onSelectedItemChanged: (index) {
-                              setState(() {
-                                final newFeet = index + 4;
-                                _heightCm = ((newFeet * 12 + inches) * 2.54).round();
-                              });
-                            },
-                            children: List.generate(4, (index) => Center(
-                              child: Text(
-                                '${index + 4}',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: (index + 4) == feet ? FontWeight.bold : FontWeight.normal,
-                                  color: (index + 4) == feet ? const Color(0xFF0039A6) : Colors.grey,
-                                ),
-                              ),
-                            )),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        const Text('Inches', style: TextStyle(color: Colors.grey)),
-                        const SizedBox(height: 8),
-                        Container(
-                          height: 150,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey[300]!),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: ListWheelScrollView(
-                            itemExtent: 40,
-                            diameterRatio: 1.5,
-                            physics: const FixedExtentScrollPhysics(),
-                            controller: FixedExtentScrollController(initialItem: inches),
-                            onSelectedItemChanged: (index) {
-                              setState(() {
-                                _heightCm = ((feet * 12 + index) * 2.54).round();
-                              });
-                            },
-                            children: List.generate(12, (index) => Center(
-                              child: Text(
-                                '$index',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: index == inches ? FontWeight.bold : FontWeight.normal,
-                                  color: index == inches ? const Color(0xFF0039A6) : Colors.grey,
-                                ),
-                              ),
-                            )),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              
+              // Reusable height picker with auto-conversion
+              HeightPicker(
+                initialHeightCm: _heightCm,
+                initialUseFeet: true,
+                onHeightChanged: (cm) {
+                  setState(() => _heightCm = cm);
+                },
               ),
+              
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
