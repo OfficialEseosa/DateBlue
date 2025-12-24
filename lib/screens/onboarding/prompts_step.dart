@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:audio_waveforms/audio_waveforms.dart';
+import 'package:just_audio/just_audio.dart';
 import 'models/prompt.dart';
 import '../../widgets/onboarding_bottom_bar.dart';
 import '../../widgets/prompts/prompts_widgets.dart';
@@ -34,16 +34,23 @@ class _PromptsStepState extends State<PromptsStep> {
   bool _isPlaying = false;
 
   // For voice playback
-  late PlayerController _playerController;
+  late AudioPlayer _audioPlayer;
 
   @override
   void initState() {
     super.initState();
     _loadExistingPrompts();
-    for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 3; i++) {
       _controllers[i] = TextEditingController();
     }
-    _playerController = PlayerController();
+    _audioPlayer = AudioPlayer();
+    
+    // Listen for playback completion
+    _audioPlayer.playerStateStream.listen((state) {
+      if (mounted && state.processingState == ProcessingState.completed) {
+        setState(() => _isPlaying = false);
+      }
+    });
   }
 
   @override
@@ -51,7 +58,7 @@ class _PromptsStepState extends State<PromptsStep> {
     for (var controller in _controllers.values) {
       controller.dispose();
     }
-    _playerController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -220,15 +227,16 @@ class _PromptsStepState extends State<PromptsStep> {
 
     try {
       if (_isPlaying) {
-        await _playerController.stopPlayer();
+        await _audioPlayer.pause();
         setState(() => _isPlaying = false);
       } else {
-        await _playerController.preparePlayer(path: path, shouldExtractWaveform: false);
+        if (_voicePrompt!.localPath != null) {
+          await _audioPlayer.setFilePath(path);
+        } else {
+          await _audioPlayer.setUrl(path);
+        }
         setState(() => _isPlaying = true);
-        await _playerController.startPlayer();
-        _playerController.onCompletion.listen((_) {
-          if (mounted) setState(() => _isPlaying = false);
-        });
+        await _audioPlayer.play();
       }
     } catch (e) {
       setState(() => _isPlaying = false);
@@ -259,7 +267,7 @@ class _PromptsStepState extends State<PromptsStep> {
         final file = File(_voicePrompt!.localPath!);
         final ref = FirebaseStorage.instance
             .ref()
-            .child('users/${widget.user.uid}/voice_prompts/voice_prompt.m4a');
+            .child('users/${widget.user.uid}/voice_prompts/voice_prompt.aac');
         await ref.putFile(file);
         final url = await ref.getDownloadURL();
 
