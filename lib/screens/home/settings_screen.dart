@@ -53,7 +53,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _deleteStorageFolderRecursively(Reference ref) async {
     final listResult = await ref.listAll();
     
-    // Delete all files in this folder11
+    // Delete all files in this folder
     for (var item in listResult.items) {
       await item.delete();
     }

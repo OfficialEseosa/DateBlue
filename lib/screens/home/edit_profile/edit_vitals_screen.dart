@@ -366,12 +366,12 @@ class _EditVitalsScreenState extends State<EditVitalsScreen> {
           showOnProfile: _showReligiousOnProfile,
           onToggleVisibility: (value) {
             setState(() => _showReligiousOnProfile = value);
-            _saveField('showReligiousOnProfile', value);
+            _saveField('showReligiousBeliefOnProfile', value);
           },
           onSelect: (value) {
             setState(() => _religiousBeliefs = value);
-            _saveField('religiousBeliefs', value, additionalData: {
-              'showReligiousOnProfile': _showReligiousOnProfile,
+            _saveField('religiousBeliefs', [value], additionalData: {
+              'showReligiousBeliefOnProfile': _showReligiousOnProfile,
             });
           },
         );
@@ -886,9 +886,9 @@ class _EditVitalsScreenState extends State<EditVitalsScreen> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: () => _saveField('smoking', _smoking, additionalData: {
-              'drinking': _drinking,
-              'marijuana': _marijuana,
+            onPressed: () => _saveField('smokingStatus', _smoking, additionalData: {
+              'drinkingStatus': _drinking,
+              'weedStatus': _marijuana,
               'showSubstanceOnProfile': _showSubstanceOnProfile,
             }),
             style: ElevatedButton.styleFrom(
