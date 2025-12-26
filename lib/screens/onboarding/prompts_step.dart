@@ -283,7 +283,7 @@ class _PromptsStepState extends State<PromptsStep> {
       final data = {
         'prompts': promptsData,
         if (voicePromptData != null) 'voicePrompt': voicePromptData,
-        'onboardingStep': 16,
+        'onboardingStep': 17,
       };
 
       await FirebaseFirestore.instance

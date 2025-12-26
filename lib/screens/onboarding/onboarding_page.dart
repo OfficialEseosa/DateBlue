@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../home_page.dart';
 import 'name_step.dart';
 import 'birthday_step.dart';
 import 'campus_step.dart';
@@ -19,6 +18,7 @@ import 'substance_use_step.dart';
 import 'photo_permission_step.dart';
 import 'media_upload_step.dart';
 import 'prompts_step.dart';
+import 'notification_permission_screen.dart';
 
 class OnboardingPage extends StatefulWidget {
   final User user;
@@ -69,11 +69,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
       _currentStep++;
     });
     
-    // If we've completed step 16 (the final step), navigate to home
+    // If we've completed step 16 (the final step), navigate to notification permission
     if (_currentStep > 16) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => HomePage(user: widget.user),
+          builder: (context) => NotificationPermissionScreen(user: widget.user),
         ),
       );
     }

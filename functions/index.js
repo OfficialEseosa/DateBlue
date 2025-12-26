@@ -355,3 +355,82 @@ function buildEmailHtml(code, isResend) {
     </div>
   `;
 }
+
+/**
+ * Send push notification when someone receives a like
+ * Triggered when receivedLikes field is updated
+ */
+exports.onLikeReceived = functions.firestore
+    .document("users/{userId}")
+    .onUpdate(async (change, context) => {
+      const before = change.before.data();
+      const after = change.after.data();
+      const userId = context.params.userId;
+
+      // Check if receivedLikes was updated
+      const beforeLikes = before.receivedLikes || [];
+      const afterLikes = after.receivedLikes || [];
+
+      // Only proceed if a new like was added
+      if (afterLikes.length <= beforeLikes.length) {
+        return null;
+      }
+
+      // Get the FCM token
+      const fcmToken = after.fcmToken;
+      if (!fcmToken) {
+        console.log("No FCM token for user:", userId);
+        return null;
+      }
+
+      // Get the new liker's info
+      const newLike = afterLikes[afterLikes.length - 1];
+      const likerId = newLike.fromUserId;
+
+      try {
+        const likerDoc = await admin.firestore().collection("users").doc(likerId).get();
+        const likerData = likerDoc.data() || {};
+        const likerName = likerData.firstName || "Someone";
+        const likerPhoto = (likerData.mediaUrls && likerData.mediaUrls[0]) || null;
+
+        // Send push notification
+        const message = {
+          token: fcmToken,
+          notification: {
+            title: "Someone likes you! 💙",
+            body: `${likerName} just liked your profile. Tap to see who!`,
+          },
+          data: {
+            type: "like_received",
+            fromUserId: likerId,
+            click_action: "FLUTTER_NOTIFICATION_CLICK",
+          },
+          android: {
+            notification: {
+              channelId: "likes",
+              priority: "high",
+              imageUrl: likerPhoto,
+            },
+          },
+          apns: {
+            payload: {
+              aps: {
+                badge: 1,
+                sound: "default",
+              },
+            },
+            fcmOptions: {
+              imageUrl: likerPhoto,
+            },
+          },
+        };
+
+        await admin.messaging().send(message);
+        console.log("Notification sent to:", userId);
+        return null;
+      } catch (error) {
+        console.error("Error sending notification:", error);
+        return null;
+      }
+    });
+

@@ -7,6 +7,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../login_page.dart';
 import 'admin/admin_screen.dart';
+import '../../services/notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final User user;
@@ -226,6 +227,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Notifications Section
+                  const Text(
+                    'Notifications',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildNotificationsSection(),
+                  
+                  const SizedBox(height: 32),
+                  
                   // Account Section
                   const Text(
                     'Account',
@@ -386,6 +402,82 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
     );
+  }
+
+  Widget _buildNotificationsSection() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(widget.user.uid).snapshots(),
+      builder: (context, snapshot) {
+        final notificationsEnabled = snapshot.data?.data() is Map 
+            ? (snapshot.data!.data() as Map)['notificationsEnabled'] ?? false 
+            : false;
+        
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0039A6).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.notifications_outlined,
+                    color: Color(0xFF0039A6),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Push Notifications', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                      Text('Get notified when someone likes you', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: notificationsEnabled,
+                  onChanged: _toggleNotifications,
+                  activeColor: const Color(0xFF0039A6),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _toggleNotifications(bool enable) async {
+    if (enable) {
+      final granted = await NotificationService().enableNotifications(widget.user.uid);
+      if (!granted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enable notifications in device settings')),
+        );
+      } else {
+        setState(() {});
+      }
+    } else {
+      await NotificationService().disableNotifications(widget.user.uid);
+      setState(() {});
+    }
   }
 
   Widget _buildSettingsItem({

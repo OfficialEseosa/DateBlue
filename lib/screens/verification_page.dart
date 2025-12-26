@@ -370,7 +370,7 @@ class _VerificationPageState extends State<VerificationPage>
       final onboardingStep = data?['onboardingStep'] as int?;
       
       if (mounted) {
-        // If onboarding not completed (step 16 is the final step), go to onboarding
+        // If onboarding not completed, go to onboarding
         if (onboardingStep == null || onboardingStep < 17) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => OnboardingPage(user: widget.user)),
