@@ -43,7 +43,7 @@ async function cleanupReceivedLikes(deletedUserId) {
   try {
     // Query all users who have this user in their receivedLikes
     const usersSnapshot = await admin.firestore().collection("users").get();
-    const batch = admin.firestore().batch();
+    let batch = admin.firestore().batch();
     let batchCount = 0;
 
     for (const userDoc of usersSnapshot.docs) {
@@ -63,9 +63,10 @@ async function cleanupReceivedLikes(deletedUserId) {
         batch.update(userDoc.ref, {receivedLikes: filteredLikes});
         batchCount++;
 
-        // Firestore batch limit is 500
+        // Firestore batch limit is 500, commit and create new batch
         if (batchCount >= 400) {
           await batch.commit();
+          batch = admin.firestore().batch();
           batchCount = 0;
         }
       }
@@ -92,7 +93,7 @@ async function cleanupMatches(deletedUserId) {
         .where("users", "array-contains", deletedUserId)
         .get();
 
-    const batch = admin.firestore().batch();
+    let batch = admin.firestore().batch();
     let batchCount = 0;
 
     for (const matchDoc of matchesSnapshot.docs) {
@@ -101,6 +102,7 @@ async function cleanupMatches(deletedUserId) {
 
       if (batchCount >= 400) {
         await batch.commit();
+        batch = admin.firestore().batch();
         batchCount = 0;
       }
     }
@@ -129,7 +131,7 @@ async function deleteSubcollection(userId, subcollectionName) {
 
     const snapshot = await subcollectionRef.get();
 
-    const batch = admin.firestore().batch();
+    let batch = admin.firestore().batch();
     let batchCount = 0;
 
     for (const doc of snapshot.docs) {
@@ -138,6 +140,7 @@ async function deleteSubcollection(userId, subcollectionName) {
 
       if (batchCount >= 400) {
         await batch.commit();
+        batch = admin.firestore().batch();
         batchCount = 0;
       }
     }

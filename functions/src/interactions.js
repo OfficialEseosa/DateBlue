@@ -89,10 +89,11 @@ exports.onInteractionCreated = functions.firestore
 
       try {
         // Add to target user's receivedLikes
+        // Note: serverTimestamp() not allowed inside arrays, use Timestamp.now()
         await admin.firestore().collection("users").doc(toUserId).update({
           receivedLikes: admin.firestore.FieldValue.arrayUnion({
             fromUserId: fromUserId,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            timestamp: admin.firestore.Timestamp.now(),
           }),
         });
         console.log("Added to receivedLikes for:", toUserId);

@@ -32,13 +32,13 @@ exports.onImageUploaded = functions.storage
         return null;
       }
 
-      try {
-        const fileName = path.basename(filePath);
-        const tempFilePath = path.join(os.tmpdir(), fileName);
-        const blurredFileName = path.basename(filePath, path.extname(filePath)) + "_blurred.jpg";
-        const blurredFilePath = path.dirname(filePath) + "/" + blurredFileName;
-        const tempBlurredPath = path.join(os.tmpdir(), blurredFileName);
+      const fileName = path.basename(filePath);
+      const tempFilePath = path.join(os.tmpdir(), fileName);
+      const blurredFileName = path.basename(filePath, path.extname(filePath)) + "_blurred.jpg";
+      const blurredFilePath = path.dirname(filePath) + "/" + blurredFileName;
+      const tempBlurredPath = path.join(os.tmpdir(), blurredFileName);
 
+      try {
         await bucket.file(filePath).download({destination: tempFilePath});
         console.log("Downloaded original image to:", tempFilePath);
 
@@ -82,11 +82,17 @@ exports.onImageUploaded = functions.storage
           }
         }
 
-        fs.unlinkSync(tempFilePath);
-        fs.unlinkSync(tempBlurredPath);
         return null;
       } catch (error) {
         console.error("Error creating blurred thumbnail:", error);
         return null;
+      } finally {
+      // Clean up temp files even on error
+        try {
+          if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+          if (fs.existsSync(tempBlurredPath)) fs.unlinkSync(tempBlurredPath);
+        } catch (cleanupError) {
+          console.error("Error cleaning up temp files:", cleanupError);
+        }
       }
     });
