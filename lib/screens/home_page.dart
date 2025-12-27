@@ -5,6 +5,7 @@ import 'home/discover_page.dart';
 import 'home/likes_page.dart';
 import 'home/matches_page.dart';
 import 'home/profile_page.dart';
+import '../services/notification_service.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -24,6 +25,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadUserData();
+    NotificationService().initialize(widget.user.uid);
   }
 
   @override
@@ -193,87 +195,87 @@ class _HomePageState extends State<HomePage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(
+              _AnimatedNavIcon(
                 icon: Icons.explore,
                 index: 0,
+                isSelected: _currentIndex == 0,
+                animationType: NavAnimationType.spin,
+                onTap: () => setState(() => _currentIndex = 0),
               ),
-              _buildNavItem(
+              _AnimatedNavIcon(
                 icon: Icons.favorite,
                 index: 1,
+                isSelected: _currentIndex == 1,
+                animationType: NavAnimationType.pulse,
+                onTap: () => setState(() => _currentIndex = 1),
               ),
-              _buildNavItem(
+              _AnimatedNavIcon(
                 icon: Icons.chat_bubble,
                 index: 2,
+                isSelected: _currentIndex == 2,
+                animationType: NavAnimationType.bounce,
+                onTap: () => setState(() => _currentIndex = 2),
               ),
-              _buildProfileNavItem(),
+              _AnimatedNavIcon(
+                icon: Icons.person,
+                index: 3,
+                isSelected: _currentIndex == 3,
+                animationType: NavAnimationType.pop,
+                onTap: () => setState(() => _currentIndex = 3),
+              ),
             ],
           ),
         ),
       ),
     );
   }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required int index,
-  }) {
-    final isSelected = _currentIndex == index;
-    return _AnimatedNavButton(
-      isSelected: isSelected,
-      onTap: () => setState(() => _currentIndex = index),
-      child: Icon(
-        icon,
-        color: isSelected ? const Color(0xFF0039A6) : Colors.grey,
-        size: 28,
-      ),
-    );
-  }
-
-  Widget _buildProfileNavItem() {
-    final isSelected = _currentIndex == 3;
-    return _AnimatedNavButton(
-      isSelected: isSelected,
-      onTap: () => setState(() => _currentIndex = 3),
-      child: Icon(
-        Icons.person,
-        color: isSelected ? const Color(0xFF0039A6) : Colors.grey,
-        size: 28,
-      ),
-    );
-  }
 }
 
-/// Animated navigation button with scale effect on tap
-class _AnimatedNavButton extends StatefulWidget {
-  final bool isSelected;
-  final VoidCallback onTap;
-  final Widget child;
+enum NavAnimationType { spin, pulse, bounce, pop }
 
-  const _AnimatedNavButton({
+/// Animated navigation icon with unique animation per type
+class _AnimatedNavIcon extends StatefulWidget {
+  final IconData icon;
+  final int index;
+  final bool isSelected;
+  final NavAnimationType animationType;
+  final VoidCallback onTap;
+
+  const _AnimatedNavIcon({
+    required this.icon,
+    required this.index,
     required this.isSelected,
+    required this.animationType,
     required this.onTap,
-    required this.child,
   });
 
   @override
-  State<_AnimatedNavButton> createState() => _AnimatedNavButtonState();
+  State<_AnimatedNavIcon> createState() => _AnimatedNavIconState();
 }
 
-class _AnimatedNavButtonState extends State<_AnimatedNavButton>
+class _AnimatedNavIconState extends State<_AnimatedNavIcon>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
+  bool _wasSelected = false;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 100),
+      duration: Duration(milliseconds: widget.animationType == NavAnimationType.spin ? 500 : 300),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _wasSelected = widget.isSelected;
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedNavIcon oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Trigger animation when becoming selected (but wasn't before)
+    if (widget.isSelected && !_wasSelected) {
+      _controller.forward(from: 0);
+    }
+    _wasSelected = widget.isSelected;
   }
 
   @override
@@ -282,40 +284,57 @@ class _AnimatedNavButtonState extends State<_AnimatedNavButton>
     super.dispose();
   }
 
-  void _onTapDown(TapDownDetails details) {
-    _controller.forward();
-  }
-
-  void _onTapUp(TapUpDetails details) {
-    _controller.reverse();
-    widget.onTap();
-  }
-
-  void _onTapCancel() {
-    _controller.reverse();
-  }
-
   @override
   Widget build(BuildContext context) {
+    final color = widget.isSelected ? const Color(0xFF0039A6) : Colors.grey;
+    
     return GestureDetector(
-      onTapDown: _onTapDown,
-      onTapUp: _onTapUp,
-      onTapCancel: _onTapCancel,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: widget.isSelected
-                ? const Color(0xFF0039A6).withValues(alpha: 0.1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: widget.child,
+      onTap: widget.onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: widget.isSelected
+              ? const Color(0xFF0039A6).withValues(alpha: 0.1)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            return Transform(
+              alignment: Alignment.center,
+              transform: _getTransform(),
+              child: Icon(widget.icon, color: color, size: 28),
+            );
+          },
         ),
       ),
     );
   }
-}
 
+  Matrix4 _getTransform() {
+    final progress = _controller.value;
+    
+    switch (widget.animationType) {
+      case NavAnimationType.spin:
+        // Full 360° spin
+        return Matrix4.identity()..rotateZ(progress * 2 * 3.14159);
+      
+      case NavAnimationType.pulse:
+        // Pulse bigger then back
+        final scale = 1.0 + (0.3 * (1 - (2 * progress - 1).abs()));
+        return Matrix4.identity()..scale(scale, scale);
+      
+      case NavAnimationType.bounce:
+        // Bounce up and down
+        final bounce = -8 * (1 - (2 * progress - 1).abs());
+        return Matrix4.identity()..translate(0.0, bounce);
+      
+      case NavAnimationType.pop:
+        // Pop scale effect
+        final scale = 1.0 + (0.25 * (1 - (2 * progress - 1).abs()));
+        return Matrix4.identity()..scale(scale, scale);
+    }
+  }
+}

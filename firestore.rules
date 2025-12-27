@@ -18,12 +18,14 @@ service cloud.firestore {
       );
       
       // Allow updating own profile (with restrictions) OR admin can update test users
+      // Note: receivedLikes is now managed by Cloud Functions only (onInteractionCreated)
       allow update: if request.auth != null && (
         (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'verified',
           'verificationCode', 
           'verificationCodeExpiry',
-          'campusEmail'
+          'campusEmail',
+          'receivedLikes'
         ])) ||
         (isAdmin() && resource.data.isTestUser == true)
       );
@@ -33,6 +35,23 @@ service cloud.firestore {
         request.auth.uid == userId || 
         (isAdmin() && resource.data.isTestUser == true)
       );
+      
+      // Interactions subcollection - users can read/write their own interactions
+      // Also allow reading if the interaction document is about you (for match detection)
+      match /interactions/{interactionId} {
+        allow write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && (request.auth.uid == userId || request.auth.uid == interactionId);
+      }
+    }
+    
+    // Matches collection
+    // Matches are ONLY created by Cloud Functions (onInteractionCreated) after verifying mutual likes
+    // Users can only read matches they are part of
+    match /matches/{matchId} {
+      allow read: if request.auth != null && request.auth.uid in resource.data.users;
+      allow create: if false; // Only Cloud Functions (Admin SDK) can create matches
+      allow update: if false; // TODO: Enable for unmatch feature in the future
+      allow delete: if false; // Matches are permanent (or handled by admin)
     }
     
     match /mail/{mailId} {

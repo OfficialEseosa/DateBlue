@@ -117,7 +117,7 @@ class _AdminScreenState extends State<AdminScreen> {
       'gender': gender,
       'pronouns': gender == 'man' ? 'he/him' : (gender == 'woman' ? 'she/her' : _randomChoice(_pronounsList)),
       'sexuality': _randomChoice(_sexualities),
-      'datingPreferences': _randomChoices(_genders.where((g) => g != 'nonbinary').toList(), _randomBetween(1, 2)),
+      'datingPreferences': _randomChoices(['men', 'women'], _randomBetween(1, 2)),
       'intentions': _randomChoice(_intentions),
       'ethnicities': _randomChoices(_ethnicities, _randomBetween(1, 2)),
       'religiousBeliefs': [_randomChoice(_religions)],
@@ -226,6 +226,13 @@ class _AdminScreenState extends State<AdminScreen> {
               _buildActionButton(icon: Icons.delete_forever, label: 'Delete All Test Users', color: Colors.red, onTap: _deleteAllTestUsers),
             ]),
             
+            const SizedBox(height: 24),
+            _buildSectionHeader('SIMULATE LIKE'),
+            const SizedBox(height: 12),
+            _buildCard([
+              _buildActionButton(icon: Icons.favorite, label: 'Test User Likes Real User', color: Colors.pink, onTap: _showSimulateLikeDialog),
+            ]),
+            
             if (_isCreating) ...[
               const SizedBox(height: 24),
               Center(child: Column(children: [
@@ -323,6 +330,102 @@ class _AdminScreenState extends State<AdminScreen> {
         );
       },
     );
+  }
+
+  void _showSimulateLikeDialog() {
+    String? selectedTestUserId;
+    String? selectedRealUserId;
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Simulate Like'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Select Test User (who will like):', style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('users').where('isTestUser', isEqualTo: true).snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const CircularProgressIndicator();
+                    final testUsers = snapshot.data!.docs;
+                    return DropdownButton<String>(
+                      isExpanded: true,
+                      hint: const Text('Select test user'),
+                      value: selectedTestUserId,
+                      items: testUsers.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        return DropdownMenuItem(value: doc.id, child: Text(data['firstName'] ?? doc.id));
+                      }).toList(),
+                      onChanged: (value) => setDialogState(() => selectedTestUserId = value),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                const Text('Select Real User (who will receive like):', style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('users').where('isTestUser', isNotEqualTo: true).limit(20).snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const CircularProgressIndicator();
+                    final realUsers = snapshot.data!.docs.where((d) => d.data() is Map && (d.data() as Map)['isTestUser'] != true).toList();
+                    return DropdownButton<String>(
+                      isExpanded: true,
+                      hint: const Text('Select real user'),
+                      value: selectedRealUserId,
+                      items: realUsers.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        return DropdownMenuItem(value: doc.id, child: Text('${data['firstName'] ?? 'Unknown'} (${data['googleEmail'] ?? doc.id})'));
+                      }).toList(),
+                      onChanged: (value) => setDialogState(() => selectedRealUserId = value),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: selectedTestUserId != null && selectedRealUserId != null
+                  ? () async {
+                      Navigator.pop(context);
+                      await _simulateLike(selectedTestUserId!, selectedRealUserId!);
+                    }
+                  : null,
+              child: const Text('Simulate Like'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _simulateLike(String fromUserId, String toUserId) async {
+    try {
+      // Create the interaction - Cloud Function will handle:
+      // 1. Adding to receivedLikes
+      // 2. Sending push notifications
+      // 3. Match detection
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(fromUserId)
+          .collection('interactions')
+          .doc(toUserId)
+          .set({
+        'action': 'like',
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      
+      if (mounted) showTopNotification(context, 'Like simulated! Cloud Function will process it.');
+    } catch (e) {
+      if (mounted) showTopNotification(context, 'Error: $e', isError: true);
+    }
   }
 }
 

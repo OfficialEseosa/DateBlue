@@ -243,6 +243,32 @@ class ProfileOptions {
     'Newton Campus',
   ];
 
+  static const List<String> religionOptions = [
+    'Christian',
+    'Catholic',
+    'Muslim',
+    'Jewish',
+    'Hindu',
+    'Buddhist',
+    'Sikh',
+    'Spiritual',
+    'Agnostic',
+    'Atheist',
+    'Other',
+    'Prefer not to say',
+  ];
+
+  // Ethnicity values for filter sheets - returns stored Firestore values
+  static List<String> get ethnicityOptionsList => 
+    ethnicityOptions.map((o) => o['value'] as String).toList();
+
+  // Get display label for ethnicity filter value
+  static String getEthnicityFilterLabel(String value) {
+    final option = ethnicityOptions.where((o) => o['value'] == value);
+    if (option.isNotEmpty) return option.first['label'] as String;
+    return value;
+  }
+
   // ===================
   // HEIGHT HELPERS
   // ===================

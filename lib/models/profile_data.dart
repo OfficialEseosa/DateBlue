@@ -69,10 +69,11 @@ class ProfileData {
 
   /// Creates a ProfileData from Firestore document data
   factory ProfileData.fromFirestore(String id, Map<String, dynamic> data) {
-    // Parse birthday to age
+    // Parse birthday to age (support both 'birthday' and 'dateOfBirth')
     int? age;
-    if (data['birthday'] != null) {
-      final birthday = (data['birthday'] as dynamic).toDate();
+    final birthdayField = data['birthday'] ?? data['dateOfBirth'];
+    if (birthdayField != null) {
+      final birthday = (birthdayField as dynamic).toDate();
       age = _calculateAge(birthday);
     }
 
