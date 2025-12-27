@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../login_page.dart';
 import 'admin/admin_screen.dart';
@@ -53,21 +52,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  /// Recursively deletes all files and subfolders in a Firebase Storage reference
-  Future<void> _deleteStorageFolderRecursively(Reference ref) async {
-    final listResult = await ref.listAll();
-    
-    // Delete all files in this folder
-    for (var item in listResult.items) {
-      await item.delete();
-    }
-    
-    // Recursively delete all subfolders
-    for (var prefix in listResult.prefixes) {
-      await _deleteStorageFolderRecursively(prefix);
-    }
-  }
-
   Future<void> _handleDeleteAccount() async {
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
@@ -98,15 +82,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final userId = widget.user.uid;
 
-      // Delete all user files from Storage recursively
-      try {
-        final storageRef = FirebaseStorage.instance.ref().child('users/$userId');
-        await _deleteStorageFolderRecursively(storageRef);
-      } catch (_) {
-        // Continue with account deletion even if storage fails
-      }
-
-      // Delete user data from Firestore
+      // Delete user document - Cloud Function (onUserDeleted) handles:
+      // - Removing from all users' receivedLikes
+      // - Deleting matches involving this user
+      // - Deleting user's interactions subcollection
+      // - Deleting user's photos from Storage
+      // - Cleaning up interaction references
       await FirebaseFirestore.instance
           .collection('users')
           .doc(userId)
