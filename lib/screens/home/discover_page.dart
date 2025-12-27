@@ -21,25 +21,34 @@ class DiscoverPage extends StatefulWidget {
   State<DiscoverPage> createState() => _DiscoverPageState();
 }
 
-class _DiscoverPageState extends State<DiscoverPage> {
+class _DiscoverPageState extends State<DiscoverPage> with AutomaticKeepAliveClientMixin {
   final DiscoverService _discoverService = DiscoverService();
   final GlobalKey<SwipeableCardStackState> _cardStackKey = GlobalKey();
   
   List<ProfileData> _profiles = [];
   Map<String, dynamic> _filters = {};
   bool _isLoading = true;
+  bool _hasLoadedOnce = false;
   String? _error;
   
   // Undo functionality
   ProfileData? _lastSwipedProfile;
-  bool _wasLastSwipeLike = false;
   Timer? _undoTimer;
   int _undoSecondsLeft = 0;
+  
+  @override
+  bool get wantKeepAlive => true; // Keep state alive when switching tabs
 
   @override
   void initState() {
     super.initState();
-    _loadProfiles();
+    _loadProfilesIfNeeded();
+  }
+  
+  void _loadProfilesIfNeeded() {
+    if (!_hasLoadedOnce) {
+      _loadProfiles();
+    }
   }
 
   @override
@@ -48,13 +57,17 @@ class _DiscoverPageState extends State<DiscoverPage> {
     super.dispose();
   }
 
-  Future<void> _loadProfiles() async {
+  Future<void> _loadProfiles({bool forceRefresh = false}) async {
     if (widget.userData == null) {
       setState(() {
         _isLoading = false;
         _error = 'Please complete your profile first';
       });
       return;
+    }
+
+    if (forceRefresh || !_hasLoadedOnce) {
+      _discoverService.resetPagination();
     }
 
     setState(() {
@@ -66,6 +79,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
       final candidates = await _discoverService.getDiscoverCandidates(
         currentUserId: widget.user.uid,
         currentUserData: widget.userData!,
+        filters: _filters,
       );
 
       final profiles = candidates.map((data) {
@@ -75,6 +89,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
       setState(() {
         _profiles = profiles;
         _isLoading = false;
+        _hasLoadedOnce = true;
       });
     } catch (e) {
       setState(() {
@@ -88,7 +103,6 @@ class _DiscoverPageState extends State<DiscoverPage> {
     _undoTimer?.cancel();
     setState(() {
       _lastSwipedProfile = profile;
-      _wasLastSwipeLike = wasLike;
       _undoSecondsLeft = 15;
     });
     
@@ -133,8 +147,40 @@ class _DiscoverPageState extends State<DiscoverPage> {
     }
   }
 
+  void _loadMoreIfNeeded() {
+    // When we're running low on profiles, load more
+    final remaining = _profiles.length - (_cardStackKey.currentState?.currentIndex ?? 0);
+    if (remaining <= 5 && _discoverService.hasMoreCandidates && !_isLoading) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (widget.userData == null) return;
+    
+    try {
+      final moreCandidates = await _discoverService.loadMoreCandidates(
+        currentUserId: widget.user.uid,
+      );
+      
+      if (moreCandidates.isNotEmpty) {
+        final moreProfiles = moreCandidates.map((data) {
+          return ProfileData.fromFirestore(data['uid'], data);
+        }).toList();
+        
+        setState(() {
+          _profiles.addAll(moreProfiles);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading more profiles: $e');
+    }
+  }
+
   Future<void> _onLike(ProfileData profile) async {
     _startUndoTimer(profile, true);
+    _loadMoreIfNeeded();
+    
     try {
       final isMatch = await _discoverService.recordInteraction(
         currentUserId: widget.user.uid,
@@ -152,6 +198,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
   Future<void> _onPass(ProfileData profile) async {
     _startUndoTimer(profile, false);
+    _loadMoreIfNeeded();
+    
     try {
       await _discoverService.recordInteraction(
         currentUserId: widget.user.uid,
@@ -210,13 +258,14 @@ class _DiscoverPageState extends State<DiscoverPage> {
       currentFilters: _filters,
       onApply: (filters) {
         setState(() => _filters = filters);
-        _loadProfiles();
+        _loadProfiles(forceRefresh: true);
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Container(
       color: const Color(0xFF97CAEB),
       child: SafeArea(

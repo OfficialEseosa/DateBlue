@@ -28,8 +28,10 @@ class SwipeableCardStackState extends State<SwipeableCardStack> with TickerProvi
   late Animation<double> _rotationAnimation;
   
   Offset _dragOffset = Offset.zero;
-  bool _isDragging = false;
   int _currentIndex = 0;
+  
+  /// Expose current index for pagination logic
+  int get currentIndex => _currentIndex;
 
   @override
   void initState() {
@@ -51,7 +53,6 @@ class SwipeableCardStackState extends State<SwipeableCardStack> with TickerProvi
   }
 
   void _onPanStart(DragStartDetails details) {
-    setState(() => _isDragging = true);
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
@@ -67,7 +68,6 @@ class SwipeableCardStackState extends State<SwipeableCardStack> with TickerProvi
     } else {
       _snapBack();
     }
-    setState(() => _isDragging = false);
   }
 
   void _animateSwipeAway(bool isRight) {
@@ -177,7 +177,7 @@ class SwipeableCardStackState extends State<SwipeableCardStack> with TickerProvi
                 
                 return Transform(
                   transform: Matrix4.identity()
-                    ..translate(offset.dx, offset.dy)
+                    ..setTranslationRaw(offset.dx, offset.dy, 0)
                     ..rotateZ(rotation),
                   alignment: Alignment.center,
                   child: child,
@@ -185,7 +185,11 @@ class SwipeableCardStackState extends State<SwipeableCardStack> with TickerProvi
               },
               child: Stack(
                 children: [
-                  ProfileCard(profile: widget.profiles[_currentIndex]),
+                  ProfileCard(
+                    profile: widget.profiles[_currentIndex],
+                    onLike: like,
+                    onPass: pass,
+                  ),
                   _buildSwipeOverlay(),
                 ],
               ),

@@ -16,6 +16,8 @@ class ProfileCard extends StatelessWidget {
   final bool isOwnProfile;
   final VoidCallback? onSettingsTap;
   final VoidCallback? onEditTap;
+  final VoidCallback? onLike;
+  final VoidCallback? onPass;
   final Widget? actionButtons;
 
   const ProfileCard({
@@ -24,6 +26,8 @@ class ProfileCard extends StatelessWidget {
     this.isOwnProfile = false,
     this.onSettingsTap,
     this.onEditTap,
+    this.onLike,
+    this.onPass,
     this.actionButtons,
   });
 
@@ -37,6 +41,8 @@ class ProfileCard extends StatelessWidget {
             profile: profile,
             isOwnProfile: isOwnProfile,
             onClose: () => Navigator.of(context).pop(),
+            onLike: onLike,
+            onPass: onPass,
           );
         },
         transitionsBuilder: (context, animation, secondaryAnimation, child) {

@@ -408,7 +408,10 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<void> _simulateLike(String fromUserId, String toUserId) async {
     try {
-      // Create the interaction
+      // Create the interaction - Cloud Function will handle:
+      // 1. Adding to receivedLikes
+      // 2. Sending push notifications
+      // 3. Match detection
       await FirebaseFirestore.instance
           .collection('users')
           .doc(fromUserId)
@@ -419,15 +422,7 @@ class _AdminScreenState extends State<AdminScreen> {
         'timestamp': FieldValue.serverTimestamp(),
       });
       
-      // Add to receivedLikes
-      await FirebaseFirestore.instance.collection('users').doc(toUserId).update({
-        'receivedLikes': FieldValue.arrayUnion([{
-          'fromUserId': fromUserId,
-          'timestamp': DateTime.now().toIso8601String(),
-        }]),
-      });
-      
-      if (mounted) showTopNotification(context, 'Like simulated successfully!');
+      if (mounted) showTopNotification(context, 'Like simulated! Cloud Function will process it.');
     } catch (e) {
       if (mounted) showTopNotification(context, 'Error: $e', isError: true);
     }

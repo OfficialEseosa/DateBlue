@@ -1,24 +1,76 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 /// Service for matching algorithm and candidate discovery
 class DiscoverService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
-  /// Fetches compatible profiles for the current user
+  // Store last document for pagination
+  DocumentSnapshot? _lastDocument;
+  bool _hasMoreCandidates = true;
+  Set<String>? _cachedInteractedIds;
+  Map<String, dynamic>? _cachedCurrentUserData;
+  
+  /// Resets pagination state (call when filters change or on refresh)
+  void resetPagination() {
+    _lastDocument = null;
+    _hasMoreCandidates = true;
+    _cachedInteractedIds = null;
+    _cachedCurrentUserData = null;
+  }
+  
+  /// Whether there are more candidates to load
+  bool get hasMoreCandidates => _hasMoreCandidates;
+  
+  // Cached filters for pagination
+  Map<String, dynamic>? _cachedFilters;
+  
+  /// Fetches compatible profiles for the current user with pagination
   Future<List<Map<String, dynamic>>> getDiscoverCandidates({
     required String currentUserId,
     required Map<String, dynamic> currentUserData,
-    int limit = 20,
+    Map<String, dynamic>? filters,
+    int pageSize = 20,
+    bool loadMore = false,
   }) async {
-    // Get already interacted user IDs
-    final interactedIds = await _getInteractedUserIds(currentUserId);
+    // Reset cache if this is a fresh load
+    if (!loadMore) {
+      resetPagination();
+      _cachedFilters = filters;
+    }
+    
+    if (!_hasMoreCandidates && loadMore) {
+      return [];
+    }
+    
+    final activeFilters = _cachedFilters ?? filters ?? {};
+    
+    // Get already interacted user IDs (cache for pagination)
+    _cachedInteractedIds ??= await _getInteractedUserIds(currentUserId);
+    final interactedIds = _cachedInteractedIds!;
     interactedIds.add(currentUserId); // Exclude self
     
-    // Query all potential candidates
-    final snapshot = await _firestore
+    _cachedCurrentUserData = currentUserData;
+    
+    // Build paginated query
+    Query query = _firestore
         .collection('users')
         .where('onboardingStep', isEqualTo: 17) // Completed onboarding
-        .get();
+        .limit(pageSize * 3); // Fetch extra to account for filtering
+    
+    if (_lastDocument != null && loadMore) {
+      query = query.startAfterDocument(_lastDocument!);
+    }
+    
+    final snapshot = await query.get();
+    
+    if (snapshot.docs.isEmpty) {
+      _hasMoreCandidates = false;
+      return [];
+    }
+    
+    // Update last document for next page
+    _lastDocument = snapshot.docs.last;
     
     // Filter and score candidates
     final candidates = <Map<String, dynamic>>[];
@@ -26,17 +78,28 @@ class DiscoverService {
     for (final doc in snapshot.docs) {
       if (interactedIds.contains(doc.id)) continue;
       
-      final data = doc.data();
+      final data = doc.data() as Map<String, dynamic>;
       data['uid'] = doc.id;
       
       // Apply hard filters
       if (!_passesHardFilters(currentUserData, data)) continue;
+      
+      // Apply user-defined filters
+      if (!_passesUserFilters(data, activeFilters)) continue;
       
       // Calculate compatibility score
       final score = _calculateCompatibilityScore(currentUserData, data);
       data['_score'] = score;
       
       candidates.add(data);
+      
+      // Stop once we have enough valid candidates
+      if (candidates.length >= pageSize) break;
+    }
+    
+    // If we got fewer than requested and no more docs, we've reached the end
+    if (candidates.length < pageSize && snapshot.docs.length < pageSize * 3) {
+      _hasMoreCandidates = false;
     }
     
     // Sort by score (descending), then shuffle within similar scores
@@ -45,7 +108,23 @@ class DiscoverService {
     // Add some randomness to similar scores
     _shuffleSimilarScores(candidates);
     
-    return candidates.take(limit).toList();
+    return candidates;
+  }
+  
+  /// Load more candidates (convenience method)
+  Future<List<Map<String, dynamic>>> loadMoreCandidates({
+    required String currentUserId,
+  }) async {
+    if (_cachedCurrentUserData == null) {
+      debugPrint('Cannot load more without initial data');
+      return [];
+    }
+    
+    return getDiscoverCandidates(
+      currentUserId: currentUserId,
+      currentUserData: _cachedCurrentUserData!,
+      loadMore: true,
+    );
   }
   
   /// Gets IDs of users already interacted with (liked or passed)
@@ -77,6 +156,111 @@ class DiscoverService {
     return currentInterestedInCandidate && candidateInterestedInCurrent;
   }
   
+  /// User-defined filters (age range, campus, lifestyle, etc.)
+  bool _passesUserFilters(Map<String, dynamic> candidate, Map<String, dynamic> filters) {
+    if (filters.isEmpty) return true;
+    
+    // Age range filter
+    if (filters.containsKey('minAge') || filters.containsKey('maxAge')) {
+      final candidateAge = _calculateAge(candidate);
+      if (candidateAge != null) {
+        final minAge = filters['minAge'] as int? ?? 18;
+        final maxAge = filters['maxAge'] as int? ?? 100;
+        if (candidateAge < minAge || candidateAge > maxAge) return false;
+      }
+    }
+    
+    // Campus filter (multi-select)
+    if (filters.containsKey('campuses')) {
+      final selectedCampuses = List<String>.from(filters['campuses'] ?? []);
+      if (selectedCampuses.isNotEmpty) {
+        final candidateCampus = candidate['campus'] as String?;
+        if (candidateCampus == null || !selectedCampuses.contains(candidateCampus)) {
+          return false;
+        }
+      }
+    }
+    
+    // Children preference filter
+    if (filters.containsKey('children')) {
+      final selectedOptions = List<String>.from(filters['children'] ?? []);
+      if (selectedOptions.isNotEmpty) {
+        final candidateChildren = candidate['children'] as String?;
+        if (candidateChildren == null || !selectedOptions.contains(candidateChildren)) {
+          return false;
+        }
+      }
+    }
+    
+    // Smoking filter
+    if (filters.containsKey('smoking')) {
+      final selectedOptions = List<String>.from(filters['smoking'] ?? []);
+      if (selectedOptions.isNotEmpty) {
+        final candidateSmoking = candidate['smoking'] as String?;
+        if (candidateSmoking == null || !selectedOptions.contains(candidateSmoking)) {
+          return false;
+        }
+      }
+    }
+    
+    // Drinking filter
+    if (filters.containsKey('drinking')) {
+      final selectedOptions = List<String>.from(filters['drinking'] ?? []);
+      if (selectedOptions.isNotEmpty) {
+        final candidateDrinking = candidate['drinking'] as String?;
+        if (candidateDrinking == null || !selectedOptions.contains(candidateDrinking)) {
+          return false;
+        }
+      }
+    }
+    
+    // Religion filter
+    if (filters.containsKey('religion')) {
+      final selectedOptions = List<String>.from(filters['religion'] ?? []);
+      if (selectedOptions.isNotEmpty) {
+        final candidateReligion = candidate['religion'] as String?;
+        if (candidateReligion == null || !selectedOptions.contains(candidateReligion)) {
+          return false;
+        }
+      }
+    }
+    
+    // Ethnicity filter
+    if (filters.containsKey('ethnicity')) {
+      final selectedOptions = List<String>.from(filters['ethnicity'] ?? []);
+      if (selectedOptions.isNotEmpty) {
+        final candidateEthnicity = candidate['ethnicity'] as String?;
+        if (candidateEthnicity == null || !selectedOptions.contains(candidateEthnicity)) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  }
+  
+  int? _calculateAge(Map<String, dynamic> candidate) {
+    final birthday = candidate['birthday'] ?? candidate['dateOfBirth'];
+    if (birthday == null) return null;
+    
+    DateTime? birthDate;
+    if (birthday is Timestamp) {
+      birthDate = birthday.toDate();
+    } else if (birthday is String) {
+      birthDate = DateTime.tryParse(birthday);
+    }
+    
+    if (birthDate == null) return null;
+    
+    final today = DateTime.now();
+    int age = today.year - birthDate.year;
+    if (today.month < birthDate.month || 
+        (today.month == birthDate.month && today.day < birthDate.day)) {
+      age--;
+    }
+    return age;
+  }
+  
   /// Check if a user with given gender/prefs would be interested in target gender
   bool _isInterestedIn(String myGender, List<String> myPrefs, String theirGender) {
     // Map gender to dating preference format
@@ -94,15 +278,6 @@ class DiscoverService {
     }
   }
   
-  String _genderToPref(String gender) {
-    switch (gender) {
-      case 'man': return 'men';
-      case 'woman': return 'women';
-      case 'nonbinary': return 'nonbinary';
-      default: return gender;
-    }
-  }
-  
   /// Calculate compatibility score (higher = more compatible)
   int _calculateCompatibilityScore(Map<String, dynamic> currentUser, Map<String, dynamic> candidate) {
     int score = 0;
@@ -113,11 +288,9 @@ class DiscoverService {
     }
     
     // Age proximity: +5 if within 3 years
-    final currentDob = currentUser['dateOfBirth'];
-    final candidateDob = candidate['dateOfBirth'];
-    if (currentDob != null && candidateDob != null) {
-      final currentAge = _calculateAge(currentDob);
-      final candidateAge = _calculateAge(candidateDob);
+    final currentAge = _calculateAge(currentUser);
+    final candidateAge = _calculateAge(candidate);
+    if (currentAge != null && candidateAge != null) {
       if ((currentAge - candidateAge).abs() <= 3) {
         score += 5;
       }
@@ -141,21 +314,6 @@ class DiscoverService {
     score += sharedReligion * 2;
     
     return score;
-  }
-  
-  int _calculateAge(dynamic dob) {
-    DateTime birthDate;
-    if (dob is Timestamp) {
-      birthDate = dob.toDate();
-    } else {
-      return 0;
-    }
-    final today = DateTime.now();
-    int age = today.year - birthDate.year;
-    if (today.month < birthDate.month || (today.month == birthDate.month && today.day < birthDate.day)) {
-      age--;
-    }
-    return age;
   }
   
   /// Shuffle profiles with similar scores to add variety
@@ -198,16 +356,9 @@ class DiscoverService {
       'timestamp': FieldValue.serverTimestamp(),
     });
     
-    // If it's a like, also add to target's receivedLikes for the Likes page
-    if (isLike) {
-      await _firestore.collection('users').doc(targetUserId).update({
-        'receivedLikes': FieldValue.arrayUnion([{
-          'fromUserId': currentUserId,
-          'timestamp': DateTime.now().toIso8601String(),
-        }]),
-      });
-      return await _checkForMatch(currentUserId, targetUserId);
-    }
+    // Note: receivedLikes updates and match detection are now handled
+    // server-side by Cloud Function (onInteractionCreated)
+    // Return false here - the client will check for matches separately
     return false;
   }
   
@@ -231,43 +382,5 @@ class DiscoverService {
     await _firestore.collection('users').doc(targetUserId).update({
       'receivedLikes': receivedLikes,
     });
-  }
-  
-  /// Check if target has already liked current user = match!
-  Future<bool> _checkForMatch(String currentUserId, String targetUserId) async {
-    final theirInteraction = await _firestore
-        .collection('users')
-        .doc(targetUserId)
-        .collection('interactions')
-        .doc(currentUserId)
-        .get();
-    
-    if (theirInteraction.exists && theirInteraction.data()?['action'] == 'like') {
-      // It's a match! Create match document for both users
-      final matchId = currentUserId.compareTo(targetUserId) < 0
-          ? '${currentUserId}_$targetUserId'
-          : '${targetUserId}_$currentUserId';
-      
-      await _firestore.collection('matches').doc(matchId).set({
-        'users': [currentUserId, targetUserId],
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastMessage': null,
-      });
-      
-      // Remove from receivedLikes since they're now matched
-      await _firestore.collection('users').doc(currentUserId).update({
-        'receivedLikes': FieldValue.arrayRemove([{
-          'fromUserId': targetUserId,
-        }]),
-      });
-      await _firestore.collection('users').doc(targetUserId).update({
-        'receivedLikes': FieldValue.arrayRemove([{
-          'fromUserId': currentUserId,
-        }]),
-      });
-      
-      return true;
-    }
-    return false;
   }
 }

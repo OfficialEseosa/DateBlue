@@ -264,14 +264,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
           onNext: _nextStep,
           onBack: _previousStep,
         );
-      default:
-        // TODO: Navigate to home page
-        return const Center(
-          child: Text(
-            'Onboarding complete!',
-            style: TextStyle(color: Colors.white, fontSize: 24),
-          ),
-        );
     }
+    throw StateError('Invalid onboarding step: $_currentStep');
   }
 }

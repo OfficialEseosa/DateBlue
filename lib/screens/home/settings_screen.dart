@@ -30,6 +30,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _isLoading = true);
     
     try {
+      await NotificationService().cleanup();
+      
       if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
         await GoogleSignIn.instance.signOut();
       }
@@ -452,7 +454,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 Switch(
-                  value: notificationsEnabled,
+                   value: notificationsEnabled,
                   onChanged: _toggleNotifications,
                   activeColor: const Color(0xFF0039A6),
                 ),

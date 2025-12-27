@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/profile_options.dart';
 
-/// Filter sheet for discover preferences
+/// Professional filter sheet for discover preferences
 class FilterSheet extends StatefulWidget {
   final Map<String, dynamic> currentFilters;
   final Function(Map<String, dynamic>) onApply;
@@ -33,27 +33,75 @@ class FilterSheet extends StatefulWidget {
 }
 
 class _FilterSheetState extends State<FilterSheet> {
+  // Filter state
+  late int _minAge;
+  late int _maxAge;
   late List<String> _selectedCampuses;
-  late RangeValues _ageRange;
+  late List<String> _selectedChildren;
+  late List<String> _selectedSmoking;
+  late List<String> _selectedDrinking;
+  late List<String> _selectedReligion;
+  late List<String> _selectedEthnicity;
+  
+  // Expansion state
+  final Map<String, bool> _expanded = {
+    'age': true,
+    'campus': false,
+    'children': false,
+    'smoking': false,
+    'drinking': false,
+    'religion': false,
+    'ethnicity': false,
+  };
 
   @override
   void initState() {
     super.initState();
+    _minAge = widget.currentFilters['minAge'] ?? 18;
+    _maxAge = widget.currentFilters['maxAge'] ?? 40;
     _selectedCampuses = List<String>.from(widget.currentFilters['campuses'] ?? []);
-    _ageRange = widget.currentFilters['ageRange'] ?? const RangeValues(18, 30);
+    _selectedChildren = List<String>.from(widget.currentFilters['children'] ?? []);
+    _selectedSmoking = List<String>.from(widget.currentFilters['smoking'] ?? []);
+    _selectedDrinking = List<String>.from(widget.currentFilters['drinking'] ?? []);
+    _selectedReligion = List<String>.from(widget.currentFilters['religion'] ?? []);
+    _selectedEthnicity = List<String>.from(widget.currentFilters['ethnicity'] ?? []);
+  }
+
+  int get _activeFilterCount {
+    int count = 0;
+    if (_minAge != 18 || _maxAge != 40) count++;
+    if (_selectedCampuses.isNotEmpty) count++;
+    if (_selectedChildren.isNotEmpty) count++;
+    if (_selectedSmoking.isNotEmpty) count++;
+    if (_selectedDrinking.isNotEmpty) count++;
+    if (_selectedReligion.isNotEmpty) count++;
+    if (_selectedEthnicity.isNotEmpty) count++;
+    return count;
   }
 
   void _reset() {
     setState(() {
+      _minAge = 18;
+      _maxAge = 40;
       _selectedCampuses = [];
-      _ageRange = const RangeValues(18, 30);
+      _selectedChildren = [];
+      _selectedSmoking = [];
+      _selectedDrinking = [];
+      _selectedReligion = [];
+      _selectedEthnicity = [];
     });
   }
 
   void _apply() {
     widget.onApply({
+      'minAge': _minAge,
+      'maxAge': _maxAge,
       'campuses': _selectedCampuses,
-      'ageRange': _ageRange,
+      'children': _selectedChildren,
+      'smoking': _selectedSmoking,
+      'drinking': _selectedDrinking,
+      'religion': _selectedReligion,
+      'ethnicity': _selectedEthnicity,
     });
     Navigator.pop(context);
   }
@@ -61,7 +109,7 @@ class _FilterSheetState extends State<FilterSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
+      height: MediaQuery.of(context).size.height * 0.85,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -77,24 +125,64 @@ class _FilterSheetState extends State<FilterSheet> {
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          TextButton(
-            onPressed: _reset,
-            child: Text('Reset', style: TextStyle(color: Colors.grey[600])),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          const Expanded(
-            child: Text(
-              'Filters',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Drag handle
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+          Row(
+            children: [
+              TextButton(
+                onPressed: _reset,
+                child: Text(
+                  'Reset',
+                  style: TextStyle(
+                    color: _activeFilterCount > 0 ? const Color(0xFF0039A6) : Colors.grey[400],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    const Text(
+                      'Filters',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    if (_activeFilterCount > 0)
+                      Text(
+                        '$_activeFilterCount active',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Icon(Icons.close, color: Colors.grey),
+              ),
+            ],
           ),
         ],
       ),
@@ -102,97 +190,347 @@ class _FilterSheetState extends State<FilterSheet> {
   }
 
   Widget _buildContent() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      children: [
+        const SizedBox(height: 8),
+        
+        // Age Range Section
+        _buildExpandableSection(
+          key: 'age',
+          title: 'Age Range',
+          subtitle: '$_minAge - $_maxAge years',
+          icon: Icons.cake_outlined,
+          isActive: _minAge != 18 || _maxAge != 40,
+          content: _buildAgeRangeContent(),
+        ),
+        
+        // Campus Section
+        _buildExpandableSection(
+          key: 'campus',
+          title: 'Campus',
+          subtitle: _selectedCampuses.isEmpty 
+              ? 'All campuses' 
+              : '${_selectedCampuses.length} selected',
+          icon: Icons.school_outlined,
+          isActive: _selectedCampuses.isNotEmpty,
+          content: _buildMultiSelectContent(
+            options: ProfileOptions.campusOptions,
+            selected: _selectedCampuses,
+            displayTransform: (s) => s.replaceAll(' Campus', ''),
+          ),
+        ),
+        
+        // Children Section
+        _buildExpandableSection(
+          key: 'children',
+          title: 'Children Preference',
+          subtitle: _selectedChildren.isEmpty 
+              ? 'Any preference' 
+              : '${_selectedChildren.length} selected',
+          icon: Icons.child_care_outlined,
+          isActive: _selectedChildren.isNotEmpty,
+          content: _buildMultiSelectContent(
+            options: ProfileOptions.childrenOptions,
+            selected: _selectedChildren,
+          ),
+        ),
+        
+        // Smoking Section
+        _buildExpandableSection(
+          key: 'smoking',
+          title: 'Smoking',
+          subtitle: _selectedSmoking.isEmpty 
+              ? 'Any' 
+              : '${_selectedSmoking.length} selected',
+          icon: Icons.smoke_free_outlined,
+          isActive: _selectedSmoking.isNotEmpty,
+          content: _buildMultiSelectContent(
+            options: ProfileOptions.smokingOptions,
+            selected: _selectedSmoking,
+          ),
+        ),
+        
+        // Drinking Section
+        _buildExpandableSection(
+          key: 'drinking',
+          title: 'Drinking',
+          subtitle: _selectedDrinking.isEmpty 
+              ? 'Any' 
+              : '${_selectedDrinking.length} selected',
+          icon: Icons.local_bar_outlined,
+          isActive: _selectedDrinking.isNotEmpty,
+          content: _buildMultiSelectContent(
+            options: ProfileOptions.drinkingOptions,
+            selected: _selectedDrinking,
+          ),
+        ),
+        
+        // Religion Section
+        _buildExpandableSection(
+          key: 'religion',
+          title: 'Religion',
+          subtitle: _selectedReligion.isEmpty 
+              ? 'Any' 
+              : '${_selectedReligion.length} selected',
+          icon: Icons.church_outlined,
+          isActive: _selectedReligion.isNotEmpty,
+          content: _buildMultiSelectContent(
+            options: ProfileOptions.religionOptions,
+            selected: _selectedReligion,
+          ),
+        ),
+        
+        // Ethnicity Section
+        _buildExpandableSection(
+          key: 'ethnicity',
+          title: 'Ethnicity',
+          subtitle: _selectedEthnicity.isEmpty 
+              ? 'Any' 
+              : '${_selectedEthnicity.length} selected',
+          icon: Icons.people_outline,
+          isActive: _selectedEthnicity.isNotEmpty,
+          content: _buildMultiSelectContent(
+            options: ProfileOptions.ethnicityOptionsList,
+            selected: _selectedEthnicity,
+          ),
+        ),
+        
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget _buildExpandableSection({
+    required String key,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isActive,
+    required Widget content,
+  }) {
+    final isExpanded = _expanded[key] ?? false;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isActive ? const Color(0xFF0039A6).withValues(alpha: 0.05) : Colors.grey[50],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isActive ? const Color(0xFF0039A6).withValues(alpha: 0.3) : Colors.grey[200]!,
+        ),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Age Range
-          _buildSectionTitle('Age Range'),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('${_ageRange.start.round()}', style: const TextStyle(fontWeight: FontWeight.w600)),
-              Text('${_ageRange.end.round()}', style: const TextStyle(fontWeight: FontWeight.w600)),
-            ],
-          ),
-          RangeSlider(
-            values: _ageRange,
-            min: 18,
-            max: 40,
-            divisions: 22,
-            activeColor: const Color(0xFF0039A6),
-            onChanged: (values) => setState(() => _ageRange = values),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Campus Filter
-          _buildSectionTitle('Campus'),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: ProfileOptions.campusOptions.map((campus) {
-              final isSelected = _selectedCampuses.contains(campus);
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    if (isSelected) {
-                      _selectedCampuses.remove(campus);
-                    } else {
-                      _selectedCampuses.add(campus);
-                    }
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFF0039A6) : Colors.grey[100],
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected ? const Color(0xFF0039A6) : Colors.grey[300]!,
+          // Header
+          InkWell(
+            onTap: () => setState(() => _expanded[key] = !isExpanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: isActive 
+                          ? const Color(0xFF0039A6).withValues(alpha: 0.15) 
+                          : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      icon,
+                      color: isActive ? const Color(0xFF0039A6) : Colors.grey[600],
+                      size: 20,
                     ),
                   ),
-                  child: Text(
-                    campus.replaceAll(' Campus', ''),
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black87,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            color: isActive ? const Color(0xFF0039A6) : Colors.grey[600],
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              );
-            }).toList(),
+                  Icon(
+                    isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    color: Colors.grey[600],
+                  ),
+                ],
+              ),
+            ),
           ),
-          
-          const SizedBox(height: 40),
+          // Content
+          if (isExpanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: content,
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+  Widget _buildAgeRangeContent() {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildAgeInput('Min', _minAge, (v) => setState(() => _minAge = v)),
+            Container(
+              width: 20,
+              height: 2,
+              color: Colors.grey[300],
+            ),
+            _buildAgeInput('Max', _maxAge, (v) => setState(() => _maxAge = v)),
+          ],
+        ),
+        const SizedBox(height: 16),
+        RangeSlider(
+          values: RangeValues(_minAge.toDouble(), _maxAge.toDouble()),
+          min: 18,
+          max: 60,
+          divisions: 42,
+          activeColor: const Color(0xFF0039A6),
+          inactiveColor: Colors.grey[300],
+          onChanged: (values) => setState(() {
+            _minAge = values.start.round();
+            _maxAge = values.end.round();
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAgeInput(String label, int value, Function(int) onChanged) {
+    return Column(
+      children: [
+        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+        const SizedBox(height: 4),
+        Container(
+          width: 80,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: Text(
+            '$value',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMultiSelectContent({
+    required List<String> options,
+    required List<String> selected,
+    String Function(String)? displayTransform,
+  }) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: options.map((option) {
+        final isSelected = selected.contains(option);
+        final displayText = displayTransform?.call(option) ?? option;
+        
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              if (isSelected) {
+                selected.remove(option);
+              } else {
+                selected.add(option);
+              }
+            });
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? const Color(0xFF0039A6) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isSelected ? const Color(0xFF0039A6) : Colors.grey[300]!,
+                width: 1.5,
+              ),
+              boxShadow: isSelected ? [
+                BoxShadow(
+                  color: const Color(0xFF0039A6).withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ] : null,
+            ),
+            child: Text(
+              displayText,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.black87,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
   Widget _buildApplyButton() {
-    return Padding(
+    return Container(
       padding: const EdgeInsets.all(20),
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: _apply,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF0039A6),
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -4),
           ),
-          child: const Text('Apply Filters', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _apply,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0039A6),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              elevation: 0,
+            ),
+            child: Text(
+              _activeFilterCount > 0 
+                  ? 'Apply ${_activeFilterCount} Filter${_activeFilterCount > 1 ? 's' : ''}'
+                  : 'Show All',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ),
       ),
     );

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -20,8 +21,10 @@ class NotificationService {
   
   String? _currentUserId;
   bool _isInitialized = false;
-  
-  // Callback for navigating to likes page
+
+  StreamSubscription<String>? _tokenRefreshSubscription;
+  StreamSubscription<RemoteMessage>? _foregroundMessageSubscription;
+  StreamSubscription<RemoteMessage>? _messageOpenedSubscription;
   VoidCallback? onNotificationTap;
   
   /// Check if notifications are enabled
@@ -70,6 +73,9 @@ class NotificationService {
   }
   
   Future<void> _setupMessaging(String userId) async {
+    // Cancel any existing subscriptions before setting up new ones
+    await _cancelSubscriptions();
+    
     // Get FCM token
     final token = await _messaging.getToken();
     if (token != null) {
@@ -77,25 +83,31 @@ class NotificationService {
       debugPrint('FCM Token saved: ${token.substring(0, 20)}...');
     }
     
-    // Listen for token refresh
-    _messaging.onTokenRefresh.listen((newToken) {
+    // Listen for token refresh (store subscription)
+    _tokenRefreshSubscription = _messaging.onTokenRefresh.listen((newToken) {
       _saveFcmToken(userId, newToken);
     });
     
-    // Handle foreground messages
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+    // Handle foreground messages (store subscription)
+    _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
     
-    // Handle background/terminated message taps
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageTap);
-    
-    // Set background handler
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    // Handle background/terminated message taps (store subscription)
+    _messageOpenedSubscription = FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageTap);
     
     // Check if app was opened from a notification
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
       _handleMessageTap(initialMessage);
     }
+  }
+  
+  Future<void> _cancelSubscriptions() async {
+    await _tokenRefreshSubscription?.cancel();
+    _tokenRefreshSubscription = null;
+    await _foregroundMessageSubscription?.cancel();
+    _foregroundMessageSubscription = null;
+    await _messageOpenedSubscription?.cancel();
+    _messageOpenedSubscription = null;
   }
   
   Future<void> _saveFcmToken(String userId, String token) async {
@@ -120,6 +132,14 @@ class NotificationService {
     } catch (e) {
       debugPrint('Error disabling notifications: $e');
     }
+  }
+
+  Future<void> cleanup() async {
+    await _cancelSubscriptions();
+    _currentUserId = null;
+    _isInitialized = false;
+    onNotificationTap = null;
+    debugPrint('NotificationService cleaned up');
   }
   
   /// Re-enable notifications after user opts back in

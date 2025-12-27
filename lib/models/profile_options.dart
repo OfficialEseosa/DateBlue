@@ -243,6 +243,34 @@ class ProfileOptions {
     'Newton Campus',
   ];
 
+  // Simple string lists for filter sheets
+  static const List<String> childrenOptions = [
+    'Have children',
+    "Don't have children",
+    'Want children',
+    "Don't want children",
+    'Open to children',
+    'Not sure yet',
+  ];
+
+  static const List<String> religionOptions = [
+    'Christian',
+    'Catholic',
+    'Muslim',
+    'Jewish',
+    'Hindu',
+    'Buddhist',
+    'Sikh',
+    'Spiritual',
+    'Agnostic',
+    'Atheist',
+    'Other',
+    'Prefer not to say',
+  ];
+
+  static List<String> get ethnicityOptionsList => 
+    ethnicityOptions.map((o) => o['label'] as String).toList();
+
   // ===================
   // HEIGHT HELPERS
   // ===================

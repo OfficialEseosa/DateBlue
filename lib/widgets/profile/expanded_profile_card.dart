@@ -14,12 +14,16 @@ class ExpandedProfileCard extends StatefulWidget {
   final ProfileData profile;
   final bool isOwnProfile;
   final VoidCallback? onClose;
+  final VoidCallback? onLike;
+  final VoidCallback? onPass;
 
   const ExpandedProfileCard({
     super.key,
     required this.profile,
     this.isOwnProfile = false,
     this.onClose,
+    this.onLike,
+    this.onPass,
   });
 
   @override
@@ -193,8 +197,8 @@ class _ExpandedProfileCardState extends State<ExpandedProfileCard>
                       ),
                     ),
 
-                    // Bottom padding
-                    const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+                    // Bottom padding for action buttons
+                    SliverPadding(padding: EdgeInsets.only(bottom: widget.isOwnProfile ? 40 : 120)),
                   ],
                 ),
 
@@ -204,11 +208,78 @@ class _ExpandedProfileCardState extends State<ExpandedProfileCard>
                   right: 16,
                   child: _buildCloseButton(context),
                 ),
+
+                // Action buttons at bottom (only for other profiles)
+                if (!widget.isOwnProfile && (widget.onLike != null || widget.onPass != null))
+                  Positioned(
+                    bottom: MediaQuery.of(context).padding.bottom + 24,
+                    left: 0,
+                    right: 0,
+                    child: _buildActionButtons(),
+                  ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Pass button (red X)
+        if (widget.onPass != null)
+          GestureDetector(
+            onTap: () {
+              widget.onPass!();
+              _close();
+            },
+            child: Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.close, color: Colors.red, size: 32),
+            ),
+          ),
+        if (widget.onPass != null && widget.onLike != null)
+          const SizedBox(width: 40),
+        // Like button (blue heart)
+        if (widget.onLike != null)
+          GestureDetector(
+            onTap: () {
+              widget.onLike!();
+              _close();
+            },
+            child: Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.favorite, color: Color(0xFF0039A6), size: 32),
+            ),
+          ),
+      ],
     );
   }
 
