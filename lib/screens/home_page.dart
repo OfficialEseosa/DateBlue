@@ -7,6 +7,8 @@ import 'home/matches_page.dart';
 import 'home/profile_page.dart';
 import '../services/notification_service.dart';
 
+import 'dart:async';
+
 class HomePage extends StatefulWidget {
   final User user;
 
@@ -20,12 +22,19 @@ class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
   int _currentIndex = 0;
+  StreamSubscription? _userDataSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _setupUserDataListener();
     NotificationService().initialize(widget.user.uid);
+  }
+
+  @override
+  void dispose() {
+    _userDataSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -39,42 +48,35 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _loadUserData() async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.user.uid)
-          .get();
+  void _setupUserDataListener() {
+    _userDataSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.user.uid)
+        .snapshots()
+        .listen((doc) async {
+      if (!doc.exists || !mounted) return;
 
-      if (doc.exists) {
-        final data = doc.data();
-        
-        // Precache main photo immediately (await to ensure it's ready)
-        if (data?['mediaUrls'] != null &&
-            (data!['mediaUrls'] as List).isNotEmpty) {
-          final mediaUrls = data['mediaUrls'] as List;
-          final mainPhotoUrl = mediaUrls[0] as String;
-          
-          // Await the main photo precache so it's ready when user goes to profile
-          await precacheImage(NetworkImage(mainPhotoUrl), context);
-          
-          // Precache other photos in background (don't await)
-          for (int i = 1; i < mediaUrls.length; i++) {
-            precacheImage(NetworkImage(mediaUrls[i] as String), context);
-          }
+      final data = doc.data();
+      
+      // Precache photos in background
+      if (data?['mediaUrls'] != null &&
+          (data!['mediaUrls'] as List).isNotEmpty) {
+        final mediaUrls = data['mediaUrls'] as List;
+        for (int i = 0; i < mediaUrls.length; i++) {
+          precacheImage(NetworkImage(mediaUrls[i] as String), context);
         }
-        
+      }
+      
+      if (mounted) {
         setState(() {
           _userData = data;
           _isLoading = false;
         });
-      } else {
-        setState(() => _isLoading = false);
       }
-    } catch (e) {
+    }, onError: (e) {
       debugPrint('Error loading user data: $e');
-      setState(() => _isLoading = false);
-    }
+      if (mounted) setState(() => _isLoading = false);
+    });
   }
 
   @override
@@ -169,7 +171,11 @@ class _HomePageState extends State<HomePage> {
       case 1:
         return LikesPage(user: widget.user, userData: _userData);
       case 2:
-        return MatchesPage(user: widget.user, userData: _userData);
+        return MatchesPage(
+          user: widget.user,
+          userData: _userData,
+          onNavigateToDiscover: () => setState(() => _currentIndex = 0),
+        );
       case 3:
         return ProfilePage(user: widget.user, userData: _userData);
       default:

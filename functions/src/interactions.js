@@ -88,8 +88,8 @@ exports.onInteractionCreated = functions.firestore
       }
 
       try {
-        // Add to target user's receivedLikes
-        // Note: serverTimestamp() not allowed inside arrays, use Timestamp.now()
+      // Add to target user's receivedLikes
+      // Note: serverTimestamp() not allowed inside arrays, use Timestamp.now()
         await admin.firestore().collection("users").doc(toUserId).update({
           receivedLikes: admin.firestore.FieldValue.arrayUnion({
             fromUserId: fromUserId,
@@ -104,11 +104,12 @@ exports.onInteractionCreated = functions.firestore
 
         if (reverseInteraction.exists && reverseInteraction.data().action === "like") {
           const matchId = fromUserId < toUserId ?
-                    `${fromUserId}_${toUserId}` : `${toUserId}_${fromUserId}`;
+          `${fromUserId}_${toUserId}` : `${toUserId}_${fromUserId}`;
 
           await admin.firestore().collection("matches").doc(matchId).set({
             users: [fromUserId, toUserId],
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
             lastMessage: null,
           });
           console.log("Match created:", matchId);

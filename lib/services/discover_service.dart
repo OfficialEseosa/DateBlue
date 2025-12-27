@@ -50,6 +50,10 @@ class DiscoverService {
     final interactedIds = _cachedInteractedIds!;
     interactedIds.add(currentUserId); // Exclude self
     
+    // Also exclude blocked users
+    final blockedUsers = List<String>.from(currentUserData['blockedUsers'] ?? []);
+    interactedIds.addAll(blockedUsers);
+    
     _cachedCurrentUserData = currentUserData;
     
     // Build paginated query
