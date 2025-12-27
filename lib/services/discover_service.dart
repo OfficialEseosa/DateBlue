@@ -181,16 +181,23 @@ class DiscoverService {
       }
     }
     
-    // Children preference filter (hasChildren + wantChildren values)
-    if (filters.containsKey('children')) {
-      final selectedOptions = List<String>.from(filters['children'] ?? []);
+    // Has Children filter
+    if (filters.containsKey('hasChildren')) {
+      final selectedOptions = List<String>.from(filters['hasChildren'] ?? []);
       if (selectedOptions.isNotEmpty) {
         final candidateHasChildren = candidate['hasChildren'] as String?;
+        if (candidateHasChildren == null || !selectedOptions.contains(candidateHasChildren)) {
+          return false;
+        }
+      }
+    }
+    
+    // Wants Children filter
+    if (filters.containsKey('wantsChildren')) {
+      final selectedOptions = List<String>.from(filters['wantsChildren'] ?? []);
+      if (selectedOptions.isNotEmpty) {
         final candidateWantChildren = candidate['wantChildren'] as String?;
-        // Match if either hasChildren or wantChildren matches any selected option
-        final hasMatch = candidateHasChildren != null && selectedOptions.contains(candidateHasChildren);
-        final wantMatch = candidateWantChildren != null && selectedOptions.contains(candidateWantChildren);
-        if (!hasMatch && !wantMatch) {
+        if (candidateWantChildren == null || !selectedOptions.contains(candidateWantChildren)) {
           return false;
         }
       }

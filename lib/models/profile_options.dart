@@ -243,21 +243,6 @@ class ProfileOptions {
     'Newton Campus',
   ];
 
-  // Children options for filter sheets - using Firestore stored values
-  static List<String> get childrenOptions => [
-    ...hasChildrenOptions.map((o) => o['value'] as String),
-    ...wantChildrenOptions.map((o) => o['value'] as String),
-  ];
-
-  // Get display label for children filter value
-  static String getChildrenFilterLabel(String value) {
-    final hasOption = hasChildrenOptions.where((o) => o['value'] == value);
-    if (hasOption.isNotEmpty) return hasOption.first['label'] as String;
-    final wantOption = wantChildrenOptions.where((o) => o['value'] == value);
-    if (wantOption.isNotEmpty) return wantOption.first['label'] as String;
-    return value;
-  }
-
   static const List<String> religionOptions = [
     'Christian',
     'Catholic',
@@ -273,8 +258,16 @@ class ProfileOptions {
     'Prefer not to say',
   ];
 
+  // Ethnicity values for filter sheets - returns stored Firestore values
   static List<String> get ethnicityOptionsList => 
-    ethnicityOptions.map((o) => o['label'] as String).toList();
+    ethnicityOptions.map((o) => o['value'] as String).toList();
+
+  // Get display label for ethnicity filter value
+  static String getEthnicityFilterLabel(String value) {
+    final option = ethnicityOptions.where((o) => o['value'] == value);
+    if (option.isNotEmpty) return option.first['label'] as String;
+    return value;
+  }
 
   // ===================
   // HEIGHT HELPERS

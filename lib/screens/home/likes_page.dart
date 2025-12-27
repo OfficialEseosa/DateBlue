@@ -27,6 +27,7 @@ class _LikesPageState extends State<LikesPage> with AutomaticKeepAliveClientMixi
   
   // Cache profiles to avoid N+1 reads
   final Map<String, ProfileData> _profileCache = {};
+  final Set<String> _failedFetches = {}; // Track failed profile fetches
   List<String> _likerIds = [];
   bool _isLoading = true;
   
@@ -105,24 +106,49 @@ class _LikesPageState extends State<LikesPage> with AutomaticKeepAliveClientMixi
   }
   
   Future<void> _batchFetchProfiles(List<String> userIds) async {
-    // Filter out already cached profiles
-    final uncachedIds = userIds.where((id) => !_profileCache.containsKey(id)).toList();
+    // Filter out already cached and failed profiles
+    final uncachedIds = userIds.where((id) => 
+      !_profileCache.containsKey(id) && !_failedFetches.contains(id)
+    ).toList();
     
     if (uncachedIds.isEmpty) return;
     
     // Firestore whereIn limited to 10 items, so chunk
     for (var i = 0; i < uncachedIds.length; i += 10) {
       final chunk = uncachedIds.skip(i).take(10).toList();
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where(FieldPath.documentId, whereIn: chunk)
-          .get();
-      
-      for (final doc in snapshot.docs) {
-        final profileData = ProfileData.fromFirestore(doc.id, doc.data());
-        _profileCache[doc.id] = profileData;
+      try {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        
+        // Track which IDs were found
+        final foundIds = <String>{};
+        for (final doc in snapshot.docs) {
+          final profileData = ProfileData.fromFirestore(doc.id, doc.data());
+          _profileCache[doc.id] = profileData;
+          foundIds.add(doc.id);
+        }
+        
+        // Mark missing profiles as failed
+        for (final id in chunk) {
+          if (!foundIds.contains(id)) {
+            _failedFetches.add(id);
+          }
+        }
+      } catch (e) {
+        // Mark all in chunk as failed on error
+        _failedFetches.addAll(chunk);
+        debugPrint('Failed to fetch profiles: $e');
       }
     }
+  }
+  
+  Future<void> _retryFetchProfile(String userId) async {
+    _failedFetches.remove(userId);
+    setState(() {}); // Trigger rebuild to show loading
+    await _batchFetchProfiles([userId]);
+    if (mounted) setState(() {});
   }
   
   ProfileData? _getCachedProfile(String userId) {
@@ -184,6 +210,41 @@ class _LikesPageState extends State<LikesPage> with AutomaticKeepAliveClientMixi
 
   Widget _buildLikeCard(String userId) {
     final profile = _getCachedProfile(userId);
+    
+    // Check if fetch failed for this user
+    if (_failedFetches.contains(userId)) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, color: Colors.white.withValues(alpha: 0.7), size: 32),
+              const SizedBox(height: 8),
+              Text(
+                'Failed to load',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () => _retryFetchProfile(userId),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Text('Retry', style: TextStyle(color: Colors.white, fontSize: 12)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     
     if (profile == null) {
       return Container(

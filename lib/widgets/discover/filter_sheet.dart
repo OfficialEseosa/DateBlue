@@ -37,7 +37,8 @@ class _FilterSheetState extends State<FilterSheet> {
   late int _minAge;
   late int _maxAge;
   late List<String> _selectedCampuses;
-  late List<String> _selectedChildren;
+  late List<String> _selectedHasChildren;
+  late List<String> _selectedWantsChildren;
   late List<String> _selectedSmoking;
   late List<String> _selectedDrinking;
   late List<String> _selectedReligion;
@@ -47,7 +48,8 @@ class _FilterSheetState extends State<FilterSheet> {
   final Map<String, bool> _expanded = {
     'age': true,
     'campus': false,
-    'children': false,
+    'hasChildren': false,
+    'wantsChildren': false,
     'smoking': false,
     'drinking': false,
     'religion': false,
@@ -60,7 +62,8 @@ class _FilterSheetState extends State<FilterSheet> {
     _minAge = widget.currentFilters['minAge'] ?? 18;
     _maxAge = widget.currentFilters['maxAge'] ?? 40;
     _selectedCampuses = List<String>.from(widget.currentFilters['campuses'] ?? []);
-    _selectedChildren = List<String>.from(widget.currentFilters['children'] ?? []);
+    _selectedHasChildren = List<String>.from(widget.currentFilters['hasChildren'] ?? []);
+    _selectedWantsChildren = List<String>.from(widget.currentFilters['wantsChildren'] ?? []);
     _selectedSmoking = List<String>.from(widget.currentFilters['smoking'] ?? []);
     _selectedDrinking = List<String>.from(widget.currentFilters['drinking'] ?? []);
     _selectedReligion = List<String>.from(widget.currentFilters['religion'] ?? []);
@@ -71,7 +74,8 @@ class _FilterSheetState extends State<FilterSheet> {
     int count = 0;
     if (_minAge != 18 || _maxAge != 40) count++;
     if (_selectedCampuses.isNotEmpty) count++;
-    if (_selectedChildren.isNotEmpty) count++;
+    if (_selectedHasChildren.isNotEmpty) count++;
+    if (_selectedWantsChildren.isNotEmpty) count++;
     if (_selectedSmoking.isNotEmpty) count++;
     if (_selectedDrinking.isNotEmpty) count++;
     if (_selectedReligion.isNotEmpty) count++;
@@ -84,7 +88,8 @@ class _FilterSheetState extends State<FilterSheet> {
       _minAge = 18;
       _maxAge = 40;
       _selectedCampuses = [];
-      _selectedChildren = [];
+      _selectedHasChildren = [];
+      _selectedWantsChildren = [];
       _selectedSmoking = [];
       _selectedDrinking = [];
       _selectedReligion = [];
@@ -97,7 +102,8 @@ class _FilterSheetState extends State<FilterSheet> {
       'minAge': _minAge,
       'maxAge': _maxAge,
       'campuses': _selectedCampuses,
-      'children': _selectedChildren,
+      'hasChildren': _selectedHasChildren,
+      'wantsChildren': _selectedWantsChildren,
       'smoking': _selectedSmoking,
       'drinking': _selectedDrinking,
       'religion': _selectedReligion,
@@ -221,18 +227,33 @@ class _FilterSheetState extends State<FilterSheet> {
           ),
         ),
         
-        // Children Section
+        // Has Children Section
         _buildExpandableSection(
-          key: 'children',
-          title: 'Children Preference',
-          subtitle: _selectedChildren.isEmpty 
-              ? 'Any preference' 
-              : '${_selectedChildren.length} selected',
+          key: 'hasChildren',
+          title: 'Has Children',
+          subtitle: _selectedHasChildren.isEmpty 
+              ? 'Any' 
+              : '${_selectedHasChildren.length} selected',
+          icon: Icons.family_restroom_outlined,
+          isActive: _selectedHasChildren.isNotEmpty,
+          content: _buildMapSelectContent(
+            options: ProfileOptions.hasChildrenOptions,
+            selected: _selectedHasChildren,
+          ),
+        ),
+        
+        // Wants Children Section
+        _buildExpandableSection(
+          key: 'wantsChildren',
+          title: 'Wants Children',
+          subtitle: _selectedWantsChildren.isEmpty 
+              ? 'Any' 
+              : '${_selectedWantsChildren.length} selected',
           icon: Icons.child_care_outlined,
-          isActive: _selectedChildren.isNotEmpty,
-          content: _buildMultiSelectContent(
-            options: ProfileOptions.childrenOptions,
-            selected: _selectedChildren,
+          isActive: _selectedWantsChildren.isNotEmpty,
+          content: _buildMapSelectContent(
+            options: ProfileOptions.wantChildrenOptions,
+            selected: _selectedWantsChildren,
           ),
         ),
         
@@ -483,6 +504,62 @@ class _FilterSheetState extends State<FilterSheet> {
             ),
             child: Text(
               displayText,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.black87,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Build multi-select from Map options with value/label pairs
+  /// Displays labels but stores values in selected list
+  Widget _buildMapSelectContent({
+    required List<Map<String, dynamic>> options,
+    required List<String> selected,
+  }) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: options.map((option) {
+        final value = option['value'] as String;
+        final label = option['label'] as String;
+        final isSelected = selected.contains(value);
+        
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              if (isSelected) {
+                selected.remove(value);
+              } else {
+                selected.add(value);
+              }
+            });
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? const Color(0xFF0039A6) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isSelected ? const Color(0xFF0039A6) : Colors.grey[300]!,
+                width: 1.5,
+              ),
+              boxShadow: isSelected ? [
+                BoxShadow(
+                  color: const Color(0xFF0039A6).withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ] : null,
+            ),
+            child: Text(
+              label,
               style: TextStyle(
                 color: isSelected ? Colors.white : Colors.black87,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
