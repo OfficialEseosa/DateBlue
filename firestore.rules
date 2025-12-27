@@ -73,8 +73,9 @@ service cloud.firestore {
         allow update: if request.auth != null && 
           request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.users;
         
-        // Only sender can delete their message
+        // Only sender can delete their message (and must be in match)
         allow delete: if request.auth != null && 
+          request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.users &&
           resource.data.senderId == request.auth.uid;
       }
     }

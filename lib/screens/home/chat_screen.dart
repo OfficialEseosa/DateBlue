@@ -29,12 +29,19 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _showPrivacyBanner = true;
   Map<String, dynamic>? _matchData;
+  int _previousMessageCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadMatchData();
     _markAsRead();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadMatchData() async {
@@ -438,10 +445,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   );
                 }
 
-                // Auto-scroll when new messages arrive
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _scrollToBottom();
-                });
+                // Auto-scroll only when new messages arrive
+                if (messages.length > _previousMessageCount) {
+                  _previousMessageCount = messages.length;
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _scrollToBottom();
+                  });
+                }
 
                 return ListView.builder(
                   controller: _scrollController,

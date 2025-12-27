@@ -132,17 +132,23 @@ class MessagingService {
     final userId = currentUserId;
     if (userId == null) return;
 
-    // Get unread messages
-    final unreadMessages = await _firestore
+    final allMessages = await _firestore
         .collection('matches')
         .doc(matchId)
         .collection('messages')
-        .where('readBy', whereNotIn: [[userId]])
         .get();
 
-    // Update each message
+    // Filter to unread messages in client
+    final unreadMessages = allMessages.docs.where((doc) {
+      final readBy = List<String>.from(doc.data()['readBy'] ?? []);
+      return !readBy.contains(userId);
+    });
+
+    if (unreadMessages.isEmpty) return;
+
+    // Update each unread message
     final batch = _firestore.batch();
-    for (final doc in unreadMessages.docs) {
+    for (final doc in unreadMessages) {
       batch.update(doc.reference, {
         'readBy': FieldValue.arrayUnion([userId]),
       });
