@@ -37,46 +37,70 @@ exports.onUserDeleted = functions.firestore
 
 /**
  * Remove deleted user from all receivedLikes arrays
+ * Uses pagination to avoid loading all users into memory
  * @param {string} deletedUserId - The deleted user's ID
  */
 async function cleanupReceivedLikes(deletedUserId) {
+  const PAGE_SIZE = 100;
+  let lastDoc = null;
+  let hasMore = true;
+  let totalUpdated = 0;
+
   try {
-    // Query all users who have this user in their receivedLikes
-    const usersSnapshot = await admin.firestore().collection("users").get();
-    let batch = admin.firestore().batch();
-    let batchCount = 0;
+    while (hasMore) {
+      // Build paginated query
+      let query = admin.firestore().collection("users").limit(PAGE_SIZE);
+      if (lastDoc) {
+        query = query.startAfter(lastDoc);
+      }
 
-    for (const userDoc of usersSnapshot.docs) {
-      const userData = userDoc.data();
-      const receivedLikes = userData.receivedLikes || [];
+      const usersSnapshot = await query.get();
 
-      // Check if deleted user is in this user's receivedLikes
-      const hasDeletedUser = receivedLikes.some(
-          (like) => like.fromUserId === deletedUserId,
-      );
+      if (usersSnapshot.empty) {
+        hasMore = false;
+        break;
+      }
 
-      if (hasDeletedUser) {
-        const filteredLikes = receivedLikes.filter(
-            (like) => like.fromUserId !== deletedUserId,
+      let batch = admin.firestore().batch();
+      let batchCount = 0;
+
+      for (const userDoc of usersSnapshot.docs) {
+        const userData = userDoc.data();
+        const receivedLikes = userData.receivedLikes || [];
+
+        // Check if deleted user is in this user's receivedLikes
+        const hasDeletedUser = receivedLikes.some(
+            (like) => like.fromUserId === deletedUserId,
         );
 
-        batch.update(userDoc.ref, {receivedLikes: filteredLikes});
-        batchCount++;
+        if (hasDeletedUser) {
+          const filteredLikes = receivedLikes.filter(
+              (like) => like.fromUserId !== deletedUserId,
+          );
 
-        // Firestore batch limit is 500, commit and create new batch
-        if (batchCount >= 400) {
-          await batch.commit();
-          batch = admin.firestore().batch();
-          batchCount = 0;
+          batch.update(userDoc.ref, {receivedLikes: filteredLikes});
+          batchCount++;
+          totalUpdated++;
+
+          // Firestore batch limit is 500, commit and create new batch
+          if (batchCount >= 400) {
+            await batch.commit();
+            batch = admin.firestore().batch();
+            batchCount = 0;
+          }
         }
       }
+
+      if (batchCount > 0) {
+        await batch.commit();
+      }
+
+      // Set pagination cursor
+      lastDoc = usersSnapshot.docs[usersSnapshot.docs.length - 1];
+      hasMore = usersSnapshot.docs.length === PAGE_SIZE;
     }
 
-    if (batchCount > 0) {
-      await batch.commit();
-    }
-
-    console.log("Cleaned up receivedLikes references");
+    console.log(`Cleaned up receivedLikes references (${totalUpdated} updated)`);
   } catch (error) {
     console.error("Error cleaning up receivedLikes:", error);
   }
@@ -177,32 +201,67 @@ async function cleanupStorage(userId) {
 
 /**
  * Remove interactions where the deleted user was the target
- * (Clean up other users' interactions subcollections)
+ * Uses pagination and batching for scalability
  * @param {string} deletedUserId - The deleted user's ID
  */
 async function cleanupInteractionReferences(deletedUserId) {
+  const PAGE_SIZE = 100;
+  let lastDoc = null;
+  let hasMore = true;
+  let totalDeleted = 0;
+
   try {
-    // Get all users
-    const usersSnapshot = await admin.firestore().collection("users").get();
-    let deleteCount = 0;
-
-    for (const userDoc of usersSnapshot.docs) {
-      // Check if this user has an interaction with the deleted user
-      const interactionRef = admin.firestore()
-          .collection("users")
-          .doc(userDoc.id)
-          .collection("interactions")
-          .doc(deletedUserId);
-
-      const interactionDoc = await interactionRef.get();
-
-      if (interactionDoc.exists) {
-        await interactionRef.delete();
-        deleteCount++;
+    while (hasMore) {
+      // Build paginated query
+      let query = admin.firestore().collection("users").limit(PAGE_SIZE);
+      if (lastDoc) {
+        query = query.startAfter(lastDoc);
       }
+
+      const usersSnapshot = await query.get();
+
+      if (usersSnapshot.empty) {
+        hasMore = false;
+        break;
+      }
+
+      let batch = admin.firestore().batch();
+      let batchCount = 0;
+
+      for (const userDoc of usersSnapshot.docs) {
+        // Check if this user has an interaction with the deleted user
+        const interactionRef = admin.firestore()
+            .collection("users")
+            .doc(userDoc.id)
+            .collection("interactions")
+            .doc(deletedUserId);
+
+        const interactionDoc = await interactionRef.get();
+
+        if (interactionDoc.exists) {
+          batch.delete(interactionRef);
+          batchCount++;
+          totalDeleted++;
+
+          // Firestore batch limit is 500
+          if (batchCount >= 400) {
+            await batch.commit();
+            batch = admin.firestore().batch();
+            batchCount = 0;
+          }
+        }
+      }
+
+      if (batchCount > 0) {
+        await batch.commit();
+      }
+
+      // Set pagination cursor
+      lastDoc = usersSnapshot.docs[usersSnapshot.docs.length - 1];
+      hasMore = usersSnapshot.docs.length === PAGE_SIZE;
     }
 
-    console.log(`Deleted ${deleteCount} interaction references`);
+    console.log(`Deleted ${totalDeleted} interaction references`);
   } catch (error) {
     console.error("Error cleaning up interaction references:", error);
   }
