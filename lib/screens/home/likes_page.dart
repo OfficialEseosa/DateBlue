@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -29,13 +30,51 @@ class _LikesPageState extends State<LikesPage> with AutomaticKeepAliveClientMixi
   List<String> _likerIds = [];
   bool _isLoading = true;
   
+  // Stream subscription for real-time updates
+  StreamSubscription<DocumentSnapshot>? _likesSubscription;
+  
   @override
   bool get wantKeepAlive => true; // Keep state alive when switching tabs
   
   @override
   void initState() {
     super.initState();
-    _loadLikes();
+    _setupLikesListener();
+  }
+  
+  @override
+  void dispose() {
+    _likesSubscription?.cancel();
+    super.dispose();
+  }
+  
+  void _setupLikesListener() {
+    // Listen to real-time changes on the user's document
+    _likesSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.user.uid)
+        .snapshots()
+        .listen((snapshot) async {
+      if (!snapshot.exists || !mounted) return;
+      
+      final data = snapshot.data();
+      final receivedLikes = List<Map<String, dynamic>>.from(data?['receivedLikes'] ?? []);
+      final ids = receivedLikes.map((like) => like['fromUserId'] as String).toList();
+      
+      // Batch fetch any new profiles
+      await _batchFetchProfiles(ids);
+      
+      if (mounted) {
+        setState(() {
+          _likerIds = ids;
+          _isLoading = false;
+        });
+      }
+    }, onError: (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    });
   }
   
   Future<void> _loadLikes() async {

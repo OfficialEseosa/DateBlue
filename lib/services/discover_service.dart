@@ -181,56 +181,64 @@ class DiscoverService {
       }
     }
     
-    // Children preference filter
+    // Children preference filter (hasChildren + wantChildren values)
     if (filters.containsKey('children')) {
       final selectedOptions = List<String>.from(filters['children'] ?? []);
       if (selectedOptions.isNotEmpty) {
-        final candidateChildren = candidate['children'] as String?;
-        if (candidateChildren == null || !selectedOptions.contains(candidateChildren)) {
+        final candidateHasChildren = candidate['hasChildren'] as String?;
+        final candidateWantChildren = candidate['wantChildren'] as String?;
+        // Match if either hasChildren or wantChildren matches any selected option
+        final hasMatch = candidateHasChildren != null && selectedOptions.contains(candidateHasChildren);
+        final wantMatch = candidateWantChildren != null && selectedOptions.contains(candidateWantChildren);
+        if (!hasMatch && !wantMatch) {
           return false;
         }
       }
     }
     
-    // Smoking filter
+    // Smoking filter (field: smokingStatus)
     if (filters.containsKey('smoking')) {
       final selectedOptions = List<String>.from(filters['smoking'] ?? []);
       if (selectedOptions.isNotEmpty) {
-        final candidateSmoking = candidate['smoking'] as String?;
+        final candidateSmoking = candidate['smokingStatus'] as String?;
         if (candidateSmoking == null || !selectedOptions.contains(candidateSmoking)) {
           return false;
         }
       }
     }
     
-    // Drinking filter
+    // Drinking filter (field: drinkingStatus)
     if (filters.containsKey('drinking')) {
       final selectedOptions = List<String>.from(filters['drinking'] ?? []);
       if (selectedOptions.isNotEmpty) {
-        final candidateDrinking = candidate['drinking'] as String?;
+        final candidateDrinking = candidate['drinkingStatus'] as String?;
         if (candidateDrinking == null || !selectedOptions.contains(candidateDrinking)) {
           return false;
         }
       }
     }
     
-    // Religion filter
+    // Religion filter (field: religiousBeliefs - List<String>)
     if (filters.containsKey('religion')) {
       final selectedOptions = List<String>.from(filters['religion'] ?? []);
       if (selectedOptions.isNotEmpty) {
-        final candidateReligion = candidate['religion'] as String?;
-        if (candidateReligion == null || !selectedOptions.contains(candidateReligion)) {
+        final candidateReligions = List<String>.from(candidate['religiousBeliefs'] ?? []);
+        // Check if any of candidate's religions match any selected filter
+        final hasOverlap = candidateReligions.any((r) => selectedOptions.contains(r));
+        if (!hasOverlap) {
           return false;
         }
       }
     }
     
-    // Ethnicity filter
+    // Ethnicity filter (field: ethnicities - List<String>)
     if (filters.containsKey('ethnicity')) {
       final selectedOptions = List<String>.from(filters['ethnicity'] ?? []);
       if (selectedOptions.isNotEmpty) {
-        final candidateEthnicity = candidate['ethnicity'] as String?;
-        if (candidateEthnicity == null || !selectedOptions.contains(candidateEthnicity)) {
+        final candidateEthnicities = List<String>.from(candidate['ethnicities'] ?? []);
+        // Check if any of candidate's ethnicities match any selected filter
+        final hasOverlap = candidateEthnicities.any((e) => selectedOptions.contains(e));
+        if (!hasOverlap) {
           return false;
         }
       }

@@ -178,7 +178,6 @@ class _DiscoverPageState extends State<DiscoverPage> with AutomaticKeepAliveClie
   }
 
   Future<void> _onLike(ProfileData profile) async {
-    _startUndoTimer(profile, true);
     _loadMoreIfNeeded();
     
     try {
@@ -187,6 +186,9 @@ class _DiscoverPageState extends State<DiscoverPage> with AutomaticKeepAliveClie
         targetUserId: profile.id,
         isLike: true,
       );
+      
+      // Only start undo timer after successful interaction
+      _startUndoTimer(profile, true);
       
       if (isMatch && mounted) {
         _showMatchDialog(profile);
@@ -197,7 +199,6 @@ class _DiscoverPageState extends State<DiscoverPage> with AutomaticKeepAliveClie
   }
 
   Future<void> _onPass(ProfileData profile) async {
-    _startUndoTimer(profile, false);
     _loadMoreIfNeeded();
     
     try {
@@ -206,8 +207,12 @@ class _DiscoverPageState extends State<DiscoverPage> with AutomaticKeepAliveClie
         targetUserId: profile.id,
         isLike: false,
       );
+      
+      // Only start undo timer after successful interaction
+      _startUndoTimer(profile, false);
     } catch (e) {
-      // Silent fail for pass
+      // Silent fail for pass - don't start undo timer
+      debugPrint('Pass failed: $e');
     }
   }
 

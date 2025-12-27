@@ -243,15 +243,20 @@ class ProfileOptions {
     'Newton Campus',
   ];
 
-  // Simple string lists for filter sheets
-  static const List<String> childrenOptions = [
-    'Have children',
-    "Don't have children",
-    'Want children',
-    "Don't want children",
-    'Open to children',
-    'Not sure yet',
+  // Children options for filter sheets - using Firestore stored values
+  static List<String> get childrenOptions => [
+    ...hasChildrenOptions.map((o) => o['value'] as String),
+    ...wantChildrenOptions.map((o) => o['value'] as String),
   ];
+
+  // Get display label for children filter value
+  static String getChildrenFilterLabel(String value) {
+    final hasOption = hasChildrenOptions.where((o) => o['value'] == value);
+    if (hasOption.isNotEmpty) return hasOption.first['label'] as String;
+    final wantOption = wantChildrenOptions.where((o) => o['value'] == value);
+    if (wantOption.isNotEmpty) return wantOption.first['label'] as String;
+    return value;
+  }
 
   static const List<String> religionOptions = [
     'Christian',
