@@ -4,6 +4,7 @@ import 'dart:io' show Platform;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../login_page.dart';
 import 'admin/admin_screen.dart';
 import '../../services/notification_service.dart';
@@ -687,8 +688,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       return ListTile(
                         leading: CircleAvatar(
                           backgroundColor: Colors.grey[300],
-                          backgroundImage: user['photoUrl'] != null
-                              ? NetworkImage(user['photoUrl'])
+                        backgroundImage: user['photoUrl'] != null
+                              ? CachedNetworkImageProvider(user['photoUrl'])
                               : null,
                           child: user['photoUrl'] == null
                               ? const Icon(Icons.person, color: Colors.grey)

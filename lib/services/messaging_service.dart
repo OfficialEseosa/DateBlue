@@ -85,6 +85,10 @@ class MessagingService {
     required String content,
     String type = 'text',
     String? mediaUrl,
+    List<String>? mediaUrls,
+    String? replyToId,
+    String? replyToContent,
+    String? replyToType,
   }) async {
     final userId = currentUserId;
     if (userId == null) throw Exception('Not authenticated');
@@ -104,16 +108,20 @@ class MessagingService {
       'type': type,
       'content': content,
       'mediaUrl': mediaUrl,
+      if (mediaUrls != null) 'mediaUrls': mediaUrls,
       'timestamp': now,
       'edited': false,
       'deleted': false,
       'readBy': [userId],
       'expiresAt': expiresAt,
+      if (replyToId != null) 'replyToId': replyToId,
+      if (replyToContent != null) 'replyToContent': replyToContent,
+      if (replyToType != null) 'replyToType': replyToType,
     });
 
     // Update last message on match document
     String preview = content;
-    if (type == 'image') preview = '📷 Photo';
+    if (type == 'image' || type == 'images') preview = '📷 Photo';
     if (type == 'audio') preview = '🎤 Voice message';
     if (preview.length > 50) preview = '${preview.substring(0, 50)}...';
 

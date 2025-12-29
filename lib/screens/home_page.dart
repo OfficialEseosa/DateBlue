@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'home/discover_page.dart';
 import 'home/likes_page.dart';
 import 'home/matches_page.dart';
@@ -44,7 +45,7 @@ class _HomePageState extends State<HomePage> {
     if (_userData?['mediaUrls'] != null &&
         (_userData!['mediaUrls'] as List).isNotEmpty) {
       final mainPhotoUrl = (_userData!['mediaUrls'] as List)[0] as String;
-      precacheImage(NetworkImage(mainPhotoUrl), context);
+      precacheImage(CachedNetworkImageProvider(mainPhotoUrl), context);
     }
   }
 
@@ -63,7 +64,7 @@ class _HomePageState extends State<HomePage> {
           (data!['mediaUrls'] as List).isNotEmpty) {
         final mediaUrls = data['mediaUrls'] as List;
         for (int i = 0; i < mediaUrls.length; i++) {
-          precacheImage(NetworkImage(mediaUrls[i] as String), context);
+          precacheImage(CachedNetworkImageProvider(mediaUrls[i] as String), context);
         }
       }
       
@@ -165,22 +166,20 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCurrentPage() {
-    switch (_currentIndex) {
-      case 0:
-        return DiscoverPage(user: widget.user, userData: _userData);
-      case 1:
-        return LikesPage(user: widget.user, userData: _userData);
-      case 2:
-        return MatchesPage(
+    // IndexedStack keeps all pages alive, preventing rebuilds when switching tabs
+    return IndexedStack(
+      index: _currentIndex,
+      children: [
+        DiscoverPage(user: widget.user, userData: _userData),
+        LikesPage(user: widget.user, userData: _userData),
+        MatchesPage(
           user: widget.user,
           userData: _userData,
           onNavigateToDiscover: () => setState(() => _currentIndex = 0),
-        );
-      case 3:
-        return ProfilePage(user: widget.user, userData: _userData);
-      default:
-        return DiscoverPage(user: widget.user, userData: _userData);
-    }
+        ),
+        ProfilePage(user: widget.user, userData: _userData),
+      ],
+    );
   }
 
   Widget _buildBottomNavBar() {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/messaging_service.dart';
 import '../../theme/app_colors.dart';
 import 'chat_screen.dart';
@@ -22,8 +23,12 @@ class MatchesPage extends StatefulWidget {
   State<MatchesPage> createState() => _MatchesPageState();
 }
 
-class _MatchesPageState extends State<MatchesPage> {
+class _MatchesPageState extends State<MatchesPage> with AutomaticKeepAliveClientMixin {
   final MessagingService _messagingService = MessagingService();
+  List<Map<String, dynamic>>? _cachedMatches;
+
+  @override
+  bool get wantKeepAlive => true;
 
   String _formatTimestamp(Timestamp? timestamp) {
     if (timestamp == null) return '';
@@ -45,25 +50,15 @@ class _MatchesPageState extends State<MatchesPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: AppColors.lightBlue,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'Messages',
-          style: TextStyle(
-            color: AppColors.gsuBlue,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: false,
-      ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
+      body: SafeArea(
+        child: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _messagingService.getMatchesStream(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          // Only show loading on first load, not when returning from chat
+          if (snapshot.connectionState == ConnectionState.waiting && _cachedMatches == null) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -73,7 +68,12 @@ class _MatchesPageState extends State<MatchesPage> {
             );
           }
 
-          final matches = snapshot.data ?? [];
+          // Update cache when we get new data
+          if (snapshot.hasData) {
+            _cachedMatches = snapshot.data;
+          }
+
+          final matches = _cachedMatches ?? [];
 
           if (matches.isEmpty) {
             return _buildEmptyState();
@@ -116,6 +116,7 @@ class _MatchesPageState extends State<MatchesPage> {
             ],
           );
         },
+      ),
       ),
     );
   }
@@ -194,7 +195,7 @@ class _MatchesPageState extends State<MatchesPage> {
         radius: 28,
         backgroundColor: Colors.grey[300],
         backgroundImage: match['otherUserPhoto'] != null
-            ? NetworkImage(match['otherUserPhoto'])
+            ? CachedNetworkImageProvider(match['otherUserPhoto'])
             : null,
         child: match['otherUserPhoto'] == null
             ? const Icon(Icons.person, color: Colors.grey)
