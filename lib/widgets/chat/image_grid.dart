@@ -161,6 +161,12 @@ class ImageGrid extends StatelessWidget {
               height: height,
               color: Colors.grey[300],
             ),
+            errorWidget: (context, url, error) => Container(
+              width: width,
+              height: height,
+              color: Colors.grey[300],
+              child: const Icon(Icons.broken_image, color: Colors.grey),
+            ),
           ),
           Container(
             width: width,
