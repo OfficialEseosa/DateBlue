@@ -39,6 +39,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Map<String, dynamic>? _matchData;
   List<Map<String, dynamic>>? _cachedMessages;
   Map<String, dynamic>? _replyTo;
+  final Set<String> _preloadedUrls = {}; // Track preloaded URLs to avoid redundant work
   
   final List<Map<String, dynamic>> _pendingImages = [];
 
@@ -81,18 +82,19 @@ class _ChatScreenState extends State<ChatScreen> {
     for (final msg in messages) {
       // Preload single images
       if (msg['mediaUrl'] != null) {
-        precacheImage(
-          CachedNetworkImageProvider(msg['mediaUrl']),
-          context,
-        );
+        final url = msg['mediaUrl'] as String;
+        if (!_preloadedUrls.contains(url)) {
+          _preloadedUrls.add(url);
+          precacheImage(CachedNetworkImageProvider(url), context);
+        }
       }
       // Preload multi-images
       if (msg['mediaUrls'] != null) {
         for (final url in (msg['mediaUrls'] as List)) {
-          precacheImage(
-            CachedNetworkImageProvider(url),
-            context,
-          );
+          if (!_preloadedUrls.contains(url)) {
+            _preloadedUrls.add(url as String);
+            precacheImage(CachedNetworkImageProvider(url), context);
+          }
         }
       }
     }
@@ -354,10 +356,11 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     try {
-      final List<String> uploadedUrls = [];
-      
-      for (final image in images) {
-        final fileName = '${DateTime.now().millisecondsSinceEpoch}_${uploadedUrls.length}.jpg';
+      // Upload all images in parallel for better performance
+      final uploadFutures = images.asMap().entries.map((entry) async {
+        final index = entry.key;
+        final image = entry.value;
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}_$index.jpg';
         final ref = FirebaseStorage.instance
             .ref()
             .child('chat_images')
@@ -365,9 +368,10 @@ class _ChatScreenState extends State<ChatScreen> {
             .child(fileName);
         
         await ref.putFile(image);
-        final url = await ref.getDownloadURL();
-        uploadedUrls.add(url);
-      }
+        return ref.getDownloadURL();
+      });
+      
+      final uploadedUrls = await Future.wait(uploadFutures);
 
       // Send as single message with all URLs
       await _messagingService.sendMessage(

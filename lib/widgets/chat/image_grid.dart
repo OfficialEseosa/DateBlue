@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 /// Widget to display multiple images in a grid layout
 class ImageGrid extends StatelessWidget {
@@ -121,28 +122,22 @@ class ImageGrid extends StatelessWidget {
   Widget _buildImage(int index, {required double width, required double height}) {
     return GestureDetector(
       onTap: () => onImageTap(index),
-      child: Image.network(
-        imageUrls[index],
+      child: CachedNetworkImage(
+        imageUrl: imageUrls[index],
         width: width,
         height: height,
         fit: BoxFit.cover,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            width: width,
-            height: height,
-            color: Colors.grey[300],
-            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            width: width,
-            height: height,
-            color: Colors.grey[300],
-            child: const Icon(Icons.broken_image, color: Colors.grey),
-          );
-        },
+        placeholder: (context, url) => Container(
+          width: width,
+          height: height,
+          color: Colors.grey[300],
+        ),
+        errorWidget: (context, url, error) => Container(
+          width: width,
+          height: height,
+          color: Colors.grey[300],
+          child: const Icon(Icons.broken_image, color: Colors.grey),
+        ),
       ),
     );
   }
@@ -156,11 +151,16 @@ class ImageGrid extends StatelessWidget {
       onTap: () => onImageTap(index),
       child: Stack(
         children: [
-          Image.network(
-            imageUrls[index],
+          CachedNetworkImage(
+            imageUrl: imageUrls[index],
             width: width,
             height: height,
             fit: BoxFit.cover,
+            placeholder: (context, url) => Container(
+              width: width,
+              height: height,
+              color: Colors.grey[300],
+            ),
           ),
           Container(
             width: width,

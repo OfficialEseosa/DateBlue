@@ -6,11 +6,16 @@ service firebase.storage {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Chat images - authenticated users can upload/read
-    // Security is enforced at Firestore level (only match participants can send messages)
+    // Chat images - only match participants can read/write
     match /chat_images/{matchId}/{allPaths=**} {
-      allow read: if request.auth != null;
+      // Check if user is a participant in this match
+      function isMatchParticipant() {
+        return request.auth.uid in firestore.get(/databases/(default)/documents/matches/$(matchId)).data.users;
+      }
+      
+      allow read: if request.auth != null && isMatchParticipant();
       allow write: if request.auth != null && 
+        isMatchParticipant() &&
         request.resource.size < 10 * 1024 * 1024 &&
         request.resource.contentType.matches('image/.*');
     }

@@ -121,7 +121,8 @@ class MessagingService {
 
     // Update last message on match document
     String preview = content;
-    if (type == 'image' || type == 'images') preview = '📷 Photo';
+    if (type == 'image') preview = '📷 Photo';
+    if (type == 'images') preview = '📷 Photos';
     if (type == 'audio') preview = '🎤 Voice message';
     if (preview.length > 50) preview = '${preview.substring(0, 50)}...';
 

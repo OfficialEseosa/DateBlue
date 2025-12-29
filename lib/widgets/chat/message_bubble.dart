@@ -803,6 +803,9 @@ class _GalleryViewerScreen extends StatefulWidget {
 class _GalleryViewerScreenState extends State<_GalleryViewerScreen> {
   late PageController _pageController;
   late int _currentIndex;
+  bool _showReplyInput = false;
+  final TextEditingController _replyController = TextEditingController();
+  final FocusNode _replyFocus = FocusNode();
 
   @override
   void initState() {
@@ -814,39 +817,125 @@ class _GalleryViewerScreenState extends State<_GalleryViewerScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _replyController.dispose();
+    _replyFocus.dispose();
     super.dispose();
+  }
+
+  void _showReply() {
+    setState(() => _showReplyInput = true);
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _replyFocus.requestFocus();
+    });
+  }
+
+  void _sendReply() {
+    final text = _replyController.text.trim();
+    if (text.isNotEmpty) {
+      Navigator.of(context).pop(text);
+    }
+  }
+
+  void _hideReply() {
+    FocusScope.of(context).unfocus();
+    setState(() => _showReplyInput = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         title: Text('${_currentIndex + 1} / ${widget.imageUrls.length}'),
+        actions: [
+          if (widget.onSendReply != null)
+            IconButton(
+              icon: const Icon(Icons.reply),
+              onPressed: _showReply,
+            ),
+        ],
       ),
       extendBodyBehindAppBar: true,
-      body: PhotoViewGallery.builder(
-        scrollPhysics: const BouncingScrollPhysics(),
-        pageController: _pageController,
-        itemCount: widget.imageUrls.length,
-        onPageChanged: (index) => setState(() => _currentIndex = index),
-        builder: (context, index) {
-          return PhotoViewGalleryPageOptions(
-            imageProvider: CachedNetworkImageProvider(widget.imageUrls[index]),
-            initialScale: PhotoViewComputedScale.contained,
-            minScale: PhotoViewComputedScale.contained,
-            maxScale: PhotoViewComputedScale.covered * 4,
-            heroAttributes: PhotoViewHeroAttributes(
-              tag: 'grid_${widget.messageId}_$index',
+      body: Stack(
+        children: [
+          GestureDetector(
+            onTap: _showReplyInput ? _hideReply : null,
+            child: PhotoViewGallery.builder(
+              scrollPhysics: const BouncingScrollPhysics(),
+              pageController: _pageController,
+              itemCount: widget.imageUrls.length,
+              onPageChanged: (index) => setState(() => _currentIndex = index),
+              builder: (context, index) {
+                return PhotoViewGalleryPageOptions(
+                  imageProvider: CachedNetworkImageProvider(widget.imageUrls[index]),
+                  initialScale: PhotoViewComputedScale.contained,
+                  minScale: PhotoViewComputedScale.contained,
+                  maxScale: PhotoViewComputedScale.covered * 4,
+                  heroAttributes: PhotoViewHeroAttributes(
+                    tag: 'grid_${widget.messageId}_$index',
+                  ),
+                );
+              },
+              loadingBuilder: (context, event) => const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+              backgroundDecoration: const BoxDecoration(color: Colors.black),
             ),
-          );
-        },
-        loadingBuilder: (context, event) => const Center(
-          child: CircularProgressIndicator(color: Colors.white),
-        ),
-        backgroundDecoration: const BoxDecoration(color: Colors.black),
+          ),
+          // Reply input
+          if (_showReplyInput)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[900],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _replyController,
+                          focusNode: _replyFocus,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Reply to this photo...',
+                            hintStyle: TextStyle(color: Colors.grey[500]),
+                            filled: true,
+                            fillColor: Colors.grey[800],
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          ),
+                          onSubmitted: (_) => _sendReply(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: _sendReply,
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: Colors.blue,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.send, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
