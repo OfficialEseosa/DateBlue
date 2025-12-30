@@ -41,21 +41,9 @@ class MessagingService {
 
         final otherUserData = otherUserDoc.data()!;
 
-        // Count unread messages (sent by other user, not in current user's readBy)
-        final unreadQuery = await _firestore
-            .collection('matches')
-            .doc(doc.id)
-            .collection('messages')
-            .where('senderId', isEqualTo: otherUserId)
-            .get();
-        
-        int unreadCount = 0;
-        for (final msgDoc in unreadQuery.docs) {
-          final readBy = List<String>.from(msgDoc.data()['readBy'] ?? []);
-          if (!readBy.contains(userId)) {
-            unreadCount++;
-          }
-        }
+        // Get denormalized unread count from match document
+        final unreadCounts = data['unreadCount'] as Map<String, dynamic>? ?? {};
+        final unreadCount = unreadCounts[userId] as int? ?? 0;
 
         matches.add({
           'matchId': doc.id,
@@ -153,6 +141,16 @@ class MessagingService {
       },
       'lastMessageAt': now,
     });
+
+    // Increment unread count for the other user
+    final matchDoc = await _firestore.collection('matches').doc(matchId).get();
+    final users = List<String>.from(matchDoc.data()?['users'] ?? []);
+    final otherUserId = users.firstWhere((id) => id != userId, orElse: () => '');
+    if (otherUserId.isNotEmpty) {
+      await _firestore.collection('matches').doc(matchId).update({
+        'unreadCount.$otherUserId': FieldValue.increment(1),
+      });
+    }
   }
 
   /// Mark messages as read
@@ -182,6 +180,11 @@ class MessagingService {
       });
     }
     await batch.commit();
+
+    // Reset denormalized unread count for this user
+    await _firestore.collection('matches').doc(matchId).update({
+      'unreadCount.$userId': 0,
+    });
   }
 
   /// Edit a message

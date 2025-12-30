@@ -45,6 +45,8 @@ class _ChatScreenState extends State<ChatScreen> {
   final Set<String> _preloadedUrls = {}; // Track preloaded URLs to avoid redundant work
   String? _firstUnreadMessageId; // First unread message to show divider above
   bool _hasMarkedAsRead = false; // Track if we've marked messages as read this session
+  int _unreadCount = 0; // Cached unread count for divider display
+  String? _draftText; // Draft message text
   
   final List<Map<String, dynamic>> _pendingImages = [];
 
@@ -54,6 +56,8 @@ class _ChatScreenState extends State<ChatScreen> {
     _loadMatchData();
     _markAsRead();
     _scrollController.addListener(_onScroll);
+    // Load draft message
+    _draftText = MessageCacheService.getDraft(widget.matchId);
   }
 
   @override
@@ -985,18 +989,22 @@ class _ChatScreenState extends State<ChatScreen> {
                   // Preload images for smooth scrolling
                   _preloadImages(snapshot.data!);
                   
-                  // Find first unread message (only on initial load, not after marking as read)
+                  // Find first unread message and count (only on initial load, not after marking as read)
                   if (!_hasMarkedAsRead && _firstUnreadMessageId == null) {
                     final userId = _messagingService.currentUserId;
+                    int count = 0;
                     for (final msg in snapshot.data!) {
                       if (msg['senderId'] != userId) {
                         final readBy = List<String>.from(msg['readBy'] ?? []);
                         if (!readBy.contains(userId)) {
-                          _firstUnreadMessageId = msg['messageId'];
-                          break; // First unread found
+                          if (_firstUnreadMessageId == null) {
+                            _firstUnreadMessageId = msg['messageId'];
+                          }
+                          count++;
                         }
                       }
                     }
+                    _unreadCount = count;
                   }
                 }
 
@@ -1082,20 +1090,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
                     // Check if this is the first unread message
                     final isFirstUnread = _firstUnreadMessageId == message['messageId'];
-                    
-                    // Count unread messages for the divider
-                    int unreadCount = 0;
-                    if (isFirstUnread) {
-                      final userId = _messagingService.currentUserId;
-                      for (final msg in messages) {
-                        if (msg['senderId'] != userId) {
-                          final msgReadBy = List<String>.from(msg['readBy'] ?? []);
-                          if (!msgReadBy.contains(userId)) {
-                            unreadCount++;
-                          }
-                        }
-                      }
-                    }
 
                     final bubble = MessageBubble(
                       content: message['content'] ?? '',
@@ -1128,7 +1122,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     );
 
                     // Show unread divider above first unread message
-                    if (isFirstUnread && unreadCount > 0) {
+                    if (isFirstUnread && _unreadCount > 0) {
                       return Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -1145,7 +1139,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 12),
                                   child: Text(
-                                    '$unreadCount unread ${unreadCount == 1 ? 'message' : 'messages'}',
+                                    '$_unreadCount unread ${_unreadCount == 1 ? 'message' : 'messages'}',
                                     style: TextStyle(
                                       color: AppColors.gsuBlue,
                                       fontSize: 12,
@@ -1198,7 +1192,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
           // Input bar
           ChatInput(
-            onSendMessage: _handleSendMessage,
+            onSendMessage: (text) {
+              _handleSendMessage(text);
+              // Clear draft when message is sent
+              MessageCacheService.clearDraft(widget.matchId);
+            },
             onAttachmentPressed: _showAttachmentPicker,
             replyTo: _replyTo,
             replyToName: _replyTo != null 
@@ -1210,6 +1208,11 @@ class _ChatScreenState extends State<ChatScreen> {
             onAudioPressed: _showAudioRecorder,
             onTypingChanged: (isTyping) {
               _messagingService.setTyping(matchId: widget.matchId, isTyping: isTyping);
+            },
+            initialText: _draftText,
+            onTextChanged: (text) {
+              // Save draft on every text change (debounced by Hive)
+              MessageCacheService.saveDraft(widget.matchId, text);
             },
           ),
             ],

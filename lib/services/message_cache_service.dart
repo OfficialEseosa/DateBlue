@@ -109,4 +109,28 @@ class MessageCacheService {
     await messagesBox.clear();
     await syncBox.clear();
   }
+
+  /// Save draft message for a match
+  static Future<void> saveDraft(String matchId, String text) async {
+    final box = Hive.box<dynamic>(_syncMetaBoxName);
+    final key = 'draft_$matchId';
+    if (text.isEmpty) {
+      await box.delete(key);
+    } else {
+      await box.put(key, text);
+    }
+  }
+
+  /// Get draft message for a match
+  static String? getDraft(String matchId) {
+    final box = Hive.box<dynamic>(_syncMetaBoxName);
+    final key = 'draft_$matchId';
+    return box.get(key) as String?;
+  }
+
+  /// Clear draft message for a match
+  static Future<void> clearDraft(String matchId) async {
+    final box = Hive.box<dynamic>(_syncMetaBoxName);
+    await box.delete('draft_$matchId');
+  }
 }

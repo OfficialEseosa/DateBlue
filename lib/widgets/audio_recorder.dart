@@ -137,25 +137,25 @@ class _AudioRecorderSheetState extends State<AudioRecorderSheet> {
     }
   }
 
-  void _reRecord() async {
+  Future<void> _reRecord() async {
     await _audioPlayer.stop();
     if (_recordedPath != null) {
       try {
         await File(_recordedPath!).delete();
       } catch (_) {}
     }
-    _startRecording();
+    await _startRecording();
   }
 
-  void _send() {
+  Future<void> _send() async {
     if (_recordedPath != null && _duration.inSeconds >= 1) {
-      _audioPlayer.stop();
+      await _audioPlayer.stop();
       widget.onRecordComplete(File(_recordedPath!), _duration);
       Navigator.pop(context);
     }
   }
 
-  void _cancel() async {
+  Future<void> _cancel() async {
     await _recorderController.stop();
     await _audioPlayer.stop();
     if (_recordedPath != null) {

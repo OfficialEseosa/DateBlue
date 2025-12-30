@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../theme/app_colors.dart';
@@ -25,6 +26,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   bool _isLoading = true;
   Duration _position = Duration.zero;
   Duration _totalDuration = Duration.zero;
+  StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
 
   @override
   void initState() {
@@ -42,11 +45,11 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
         });
       }
       
-      _audioPlayer.positionStream.listen((position) {
+      _positionSubscription = _audioPlayer.positionStream.listen((position) {
         if (mounted) setState(() => _position = position);
       });
       
-      _audioPlayer.playerStateStream.listen((state) {
+      _playerStateSubscription = _audioPlayer.playerStateStream.listen((state) {
         if (mounted) {
           setState(() => _isPlaying = state.playing);
           if (state.processingState == ProcessingState.completed) {
@@ -64,6 +67,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
 
   @override
   void dispose() {
+    _positionSubscription?.cancel();
+    _playerStateSubscription?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }

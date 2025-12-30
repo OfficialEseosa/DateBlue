@@ -7,6 +7,7 @@ import 'home/likes_page.dart';
 import 'home/matches_page.dart';
 import 'home/profile_page.dart';
 import '../services/notification_service.dart';
+import '../services/messaging_service.dart';
 
 import 'dart:async';
 
@@ -207,20 +208,8 @@ class _HomePageState extends State<HomePage> {
                 animationType: NavAnimationType.spin,
                 onTap: () => setState(() => _currentIndex = 0),
               ),
-              _AnimatedNavIcon(
-                icon: Icons.favorite,
-                index: 1,
-                isSelected: _currentIndex == 1,
-                animationType: NavAnimationType.pulse,
-                onTap: () => setState(() => _currentIndex = 1),
-              ),
-              _AnimatedNavIcon(
-                icon: Icons.chat_bubble,
-                index: 2,
-                isSelected: _currentIndex == 2,
-                animationType: NavAnimationType.bounce,
-                onTap: () => setState(() => _currentIndex = 2),
-              ),
+              _buildLikesNavItem(),
+              _buildChatNavItem(),
               _AnimatedNavIcon(
                 icon: Icons.person,
                 index: 3,
@@ -232,6 +221,105 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLikesNavItem() {
+    // Get likes count from user data's receivedLikes array
+    final receivedLikes = _userData?['receivedLikes'] as List? ?? [];
+    final blockedUsers = List<String>.from(_userData?['blockedUsers'] ?? []);
+    
+    // Filter out blocked users
+    int likesCount = 0;
+    for (final like in receivedLikes) {
+      if (like is Map) {
+        final fromUserId = like['fromUserId'] as String?;
+        if (fromUserId != null && !blockedUsers.contains(fromUserId)) {
+          likesCount++;
+        }
+      }
+    }
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        _AnimatedNavIcon(
+          icon: Icons.favorite,
+          index: 1,
+          isSelected: _currentIndex == 1,
+          animationType: NavAnimationType.pulse,
+          onTap: () => setState(() => _currentIndex = 1),
+        ),
+        if (likesCount > 0)
+          Positioned(
+            right: -6,
+            top: -4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white, width: 1.5),
+              ),
+              child: Text(
+                likesCount > 9 ? '9+' : likesCount.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildChatNavItem() {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: MessagingService().getMatchesStream(),
+      builder: (context, snapshot) {
+        int totalUnread = 0;
+        if (snapshot.hasData) {
+          for (final match in snapshot.data!) {
+            totalUnread += (match['unreadCount'] as int? ?? 0);
+          }
+        }
+        
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            _AnimatedNavIcon(
+              icon: Icons.chat_bubble,
+              index: 2,
+              isSelected: _currentIndex == 2,
+              animationType: NavAnimationType.bounce,
+              onTap: () => setState(() => _currentIndex = 2),
+            ),
+            if (totalUnread > 0)
+              Positioned(
+                right: -6,
+                top: -4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: Text(
+                    totalUnread > 9 ? '9+' : totalUnread.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

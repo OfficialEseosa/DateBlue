@@ -10,6 +10,8 @@ class ChatInput extends StatefulWidget {
   final String? replyToName;
   final VoidCallback? onCancelReply;
   final Function(bool)? onTypingChanged;
+  final String? initialText;
+  final Function(String)? onTextChanged;
 
   const ChatInput({
     super.key,
@@ -21,6 +23,8 @@ class ChatInput extends StatefulWidget {
     this.replyToName,
     this.onCancelReply,
     this.onTypingChanged,
+    this.initialText,
+    this.onTextChanged,
   });
 
   @override
@@ -35,6 +39,10 @@ class _ChatInputState extends State<ChatInput> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialText != null && widget.initialText!.isNotEmpty) {
+      _controller.text = widget.initialText!;
+      _hasText = true;
+    }
     _controller.addListener(_onTextChanged);
   }
 
@@ -44,6 +52,8 @@ class _ChatInputState extends State<ChatInput> {
       setState(() => _hasText = hasText);
       widget.onTypingChanged?.call(hasText);
     }
+    // Always notify text changes for draft saving
+    widget.onTextChanged?.call(_controller.text);
   }
 
   @override

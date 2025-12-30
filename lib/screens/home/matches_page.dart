@@ -236,11 +236,18 @@ class _MatchesPageState extends State<MatchesPage> with AutomaticKeepAliveClient
           if (hasUnread) ...[
             const SizedBox(width: 8),
             Container(
-              width: 10,
-              height: 10,
-              decoration: const BoxDecoration(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
                 color: AppColors.gsuBlue,
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                unreadCount > 9 ? '9+' : unreadCount.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
