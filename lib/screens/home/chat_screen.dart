@@ -4,10 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../services/messaging_service.dart';
 import '../../services/message_cache_service.dart';
 import '../../widgets/chat/message_bubble.dart';
 import '../../widgets/chat/chat_input.dart';
+import '../../widgets/chat/typing_indicator.dart';
+import '../../widgets/audio_recorder.dart';
 import '../../theme/app_colors.dart';
 import 'image_preview_screen.dart';
 
@@ -40,6 +43,8 @@ class _ChatScreenState extends State<ChatScreen> {
   List<Map<String, dynamic>>? _cachedMessages;
   Map<String, dynamic>? _replyTo;
   final Set<String> _preloadedUrls = {}; // Track preloaded URLs to avoid redundant work
+  String? _firstUnreadMessageId; // First unread message to show divider above
+  bool _hasMarkedAsRead = false; // Track if we've marked messages as read this session
   
   final List<Map<String, dynamic>> _pendingImages = [];
 
@@ -53,6 +58,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    // Clear typing status when leaving
+    _messagingService.setTyping(matchId: widget.matchId, isTyping: false);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
@@ -75,6 +82,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _markAsRead() {
     _messagingService.markMessagesAsRead(widget.matchId);
+    // Delay setting this so we can capture the first unread message ID first
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() => _hasMarkedAsRead = true);
+      }
+    });
   }
 
   /// Preload images for smoother scrolling
@@ -453,6 +466,70 @@ class _ChatScreenState extends State<ChatScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to send image: $e')),
+        );
+      }
+    }
+  }
+
+  void _showAudioRecorder() async {
+    // Request microphone permission
+    final status = await Permission.microphone.request();
+    if (!status.isGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Microphone permission required')),
+        );
+      }
+      return;
+    }
+    
+    if (!mounted) return;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AudioRecorderSheet(
+        onRecordComplete: (audioFile, duration) {
+          _sendAudioMessage(audioFile, duration);
+        },
+      ),
+    );
+  }
+
+  Future<void> _sendAudioMessage(File audioFile, Duration duration) async {
+    try {
+      final fileName = 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('chat_audio')
+          .child(widget.matchId)
+          .child(fileName);
+      
+      await ref.putFile(
+        audioFile,
+        SettableMetadata(contentType: 'audio/mp4'),
+      );
+      
+      final downloadUrl = await ref.getDownloadURL();
+      
+      await _messagingService.sendMessage(
+        matchId: widget.matchId,
+        content: '🎤 Voice message',
+        type: 'audio',
+        mediaUrl: downloadUrl,
+        audioDuration: duration.inSeconds,
+      );
+      
+      // Clean up temp file
+      try {
+        await audioFile.delete();
+      } catch (_) {}
+      
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send voice message: $e')),
         );
       }
     }
@@ -907,6 +984,20 @@ class _ChatScreenState extends State<ChatScreen> {
                   MessageCacheService.updateSyncTime(widget.matchId);
                   // Preload images for smooth scrolling
                   _preloadImages(snapshot.data!);
+                  
+                  // Find first unread message (only on initial load, not after marking as read)
+                  if (!_hasMarkedAsRead && _firstUnreadMessageId == null) {
+                    final userId = _messagingService.currentUserId;
+                    for (final msg in snapshot.data!) {
+                      if (msg['senderId'] != userId) {
+                        final readBy = List<String>.from(msg['readBy'] ?? []);
+                        if (!readBy.contains(userId)) {
+                          _firstUnreadMessageId = msg['messageId'];
+                          break; // First unread found
+                        }
+                      }
+                    }
+                  }
                 }
 
                 final messages = _cachedMessages ?? [];
@@ -989,7 +1080,24 @@ class _ChatScreenState extends State<ChatScreen> {
                       }
                     }
 
-                    return MessageBubble(
+                    // Check if this is the first unread message
+                    final isFirstUnread = _firstUnreadMessageId == message['messageId'];
+                    
+                    // Count unread messages for the divider
+                    int unreadCount = 0;
+                    if (isFirstUnread) {
+                      final userId = _messagingService.currentUserId;
+                      for (final msg in messages) {
+                        if (msg['senderId'] != userId) {
+                          final msgReadBy = List<String>.from(msg['readBy'] ?? []);
+                          if (!msgReadBy.contains(userId)) {
+                            unreadCount++;
+                          }
+                        }
+                      }
+                    }
+
+                    final bubble = MessageBubble(
                       content: message['content'] ?? '',
                       type: message['type'] ?? 'text',
                       isMine: isMine,
@@ -1005,6 +1113,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       isFirstInSequence: isFirstInSequence,
                       replyToContent: message['replyToContent'],
                       replyToType: message['replyToType'],
+                      audioDuration: message['audioDuration'],
                       onLongPress: () => _showMessageOptions(message),
                       onReply: () => setState(() => _replyTo = message),
                       onSendImageReply: (text) async {
@@ -1017,10 +1126,74 @@ class _ChatScreenState extends State<ChatScreen> {
                         );
                       },
                     );
+
+                    // Show unread divider above first unread message
+                    if (isFirstUnread && unreadCount > 0) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    height: 1,
+                                    color: AppColors.gsuBlue,
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  child: Text(
+                                    '$unreadCount unread ${unreadCount == 1 ? 'message' : 'messages'}',
+                                    style: TextStyle(
+                                      color: AppColors.gsuBlue,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Container(
+                                    height: 1,
+                                    color: AppColors.gsuBlue,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          bubble,
+                        ],
+                      );
+                    }
+
+                    return bubble;
                   },
                 );
               },
             ),
+          ),
+
+          // Typing indicator
+          StreamBuilder<Map<String, dynamic>>(
+            stream: _messagingService.getTypingStream(widget.matchId),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const SizedBox.shrink();
+              
+              final typingData = snapshot.data!;
+              final otherUserTypingAt = typingData[widget.otherUserId];
+              
+              // Check if other user is typing (within last 5 seconds)
+              if (otherUserTypingAt != null && otherUserTypingAt is Timestamp) {
+                final typingTime = otherUserTypingAt.toDate();
+                final now = DateTime.now();
+                if (now.difference(typingTime).inSeconds < 5) {
+                  return TypingIndicator(userName: widget.otherUserName);
+                }
+              }
+              
+              return const SizedBox.shrink();
+            },
           ),
 
           // Input bar
@@ -1034,10 +1207,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     : widget.otherUserName)
                 : null,
             onCancelReply: () => setState(() => _replyTo = null),
-            onAudioPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Audio messages coming soon!')),
-              );
+            onAudioPressed: _showAudioRecorder,
+            onTypingChanged: (isTyping) {
+              _messagingService.setTyping(matchId: widget.matchId, isTyping: isTyping);
             },
           ),
             ],

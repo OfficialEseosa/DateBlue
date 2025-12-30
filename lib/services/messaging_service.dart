@@ -41,6 +41,22 @@ class MessagingService {
 
         final otherUserData = otherUserDoc.data()!;
 
+        // Count unread messages (sent by other user, not in current user's readBy)
+        final unreadQuery = await _firestore
+            .collection('matches')
+            .doc(doc.id)
+            .collection('messages')
+            .where('senderId', isEqualTo: otherUserId)
+            .get();
+        
+        int unreadCount = 0;
+        for (final msgDoc in unreadQuery.docs) {
+          final readBy = List<String>.from(msgDoc.data()['readBy'] ?? []);
+          if (!readBy.contains(userId)) {
+            unreadCount++;
+          }
+        }
+
         matches.add({
           'matchId': doc.id,
           'otherUserId': otherUserId,
@@ -53,6 +69,7 @@ class MessagingService {
           'createdAt': data['createdAt'],
           'voiceCallsEnabled': data['voiceCallsEnabled'] ?? {},
           'blockedBy': data['blockedBy'],
+          'unreadCount': unreadCount,
         });
       }
 
@@ -89,6 +106,7 @@ class MessagingService {
     String? replyToId,
     String? replyToContent,
     String? replyToType,
+    int? audioDuration,
   }) async {
     final userId = currentUserId;
     if (userId == null) throw Exception('Not authenticated');
@@ -109,6 +127,7 @@ class MessagingService {
       'content': content,
       'mediaUrl': mediaUrl,
       if (mediaUrls != null) 'mediaUrls': mediaUrls,
+      if (audioDuration != null) 'audioDuration': audioDuration,
       'timestamp': now,
       'edited': false,
       'deleted': false,
@@ -317,5 +336,27 @@ class MessagingService {
 
     final voiceCallsEnabled = match['voiceCallsEnabled'] as Map<String, dynamic>? ?? {};
     return voiceCallsEnabled[userId] == true && voiceCallsEnabled[otherUserId] == true;
+  }
+
+  /// Set typing status for current user in a match
+  Future<void> setTyping({
+    required String matchId,
+    required bool isTyping,
+  }) async {
+    final userId = currentUserId;
+    if (userId == null) return;
+
+    await _firestore.collection('matches').doc(matchId).update({
+      'typing.$userId': isTyping ? FieldValue.serverTimestamp() : FieldValue.delete(),
+    });
+  }
+
+  /// Get stream of typing status for a match
+  Stream<Map<String, dynamic>> getTypingStream(String matchId) {
+    return _firestore
+        .collection('matches')
+        .doc(matchId)
+        .snapshots()
+        .map((doc) => doc.data()?['typing'] as Map<String, dynamic>? ?? {});
   }
 }

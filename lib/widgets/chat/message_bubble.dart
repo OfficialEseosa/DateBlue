@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
+import '../audio_player_widget.dart';
 import '../../theme/app_colors.dart';
 
 class MessageBubble extends StatefulWidget {
@@ -25,6 +26,7 @@ class MessageBubble extends StatefulWidget {
   final Function(String)? onSendImageReply;
   final String? replyToContent;
   final String? replyToType;
+  final int? audioDuration;
 
   const MessageBubble({
     super.key,
@@ -46,6 +48,7 @@ class MessageBubble extends StatefulWidget {
     this.onSendImageReply,
     this.replyToContent,
     this.replyToType,
+    this.audioDuration,
   });
 
   @override
@@ -324,35 +327,12 @@ class _MessageBubbleState extends State<MessageBubble> {
         return _buildImageGrid(context, urls);
 
       case 'audio':
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.play_circle_filled,
-                color: widget.isMine ? Colors.white : AppColors.gsuBlue,
-                size: 32,
-              ),
-              const SizedBox(width: 8),
-              Container(
-                width: 100,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: widget.isMine ? Colors.white.withValues(alpha: 0.3) : Colors.grey[400],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '0:00',
-                style: TextStyle(
-                  color: widget.isMine ? Colors.white : Colors.black87,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
+        return AudioPlayerWidget(
+          audioUrl: widget.mediaUrl ?? '',
+          duration: widget.audioDuration != null 
+              ? Duration(seconds: widget.audioDuration!) 
+              : null,
+          isMine: widget.isMine,
         );
 
       default:

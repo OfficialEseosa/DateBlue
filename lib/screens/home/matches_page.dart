@@ -188,6 +188,8 @@ class _MatchesPageState extends State<MatchesPage> with AutomaticKeepAliveClient
     final lastMessageSenderId = lastMessage?['senderId'];
     final isMyMessage = lastMessageSenderId == widget.user.uid;
     final lastMessageAt = match['lastMessageAt'] as Timestamp?;
+    final unreadCount = match['unreadCount'] as int? ?? 0;
+    final hasUnread = unreadCount > 0;
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -203,9 +205,10 @@ class _MatchesPageState extends State<MatchesPage> with AutomaticKeepAliveClient
       ),
       title: Text(
         match['otherUserName'] ?? 'User',
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
+        style: TextStyle(
+          fontWeight: hasUnread ? FontWeight.bold : FontWeight.w600,
           fontSize: 16,
+          color: hasUnread ? Colors.black : null,
         ),
       ),
       subtitle: Text(
@@ -213,19 +216,36 @@ class _MatchesPageState extends State<MatchesPage> with AutomaticKeepAliveClient
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          color: Colors.grey[600],
+          color: hasUnread ? Colors.black87 : Colors.grey[600],
           fontSize: 14,
+          fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
-      trailing: lastMessageAt != null
-          ? Text(
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (lastMessageAt != null)
+            Text(
               _formatTimestamp(lastMessageAt),
               style: TextStyle(
-                color: Colors.grey[500],
+                color: hasUnread ? AppColors.gsuBlue : Colors.grey[500],
                 fontSize: 12,
+                fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
               ),
-            )
-          : null,
+            ),
+          if (hasUnread) ...[
+            const SizedBox(width: 8),
+            Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(
+                color: AppColors.gsuBlue,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ],
+        ],
+      ),
       onTap: () {
         Navigator.push(
           context,
