@@ -11,6 +11,7 @@ import 'screens/login_page.dart';
 import 'screens/verification_page.dart';
 import 'firebase_options.dart';
 import 'services/notification_service.dart';
+import 'services/message_cache_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +21,8 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  await MessageCacheService.init();
 
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 

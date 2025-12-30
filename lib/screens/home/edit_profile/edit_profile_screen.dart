@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:just_audio/just_audio.dart';
 import '../../../models/profile_options.dart';
 import '../../../widgets/top_notification.dart';
 import '../../../widgets/prompts/prompts_widgets.dart';
+import '../../../widgets/audio_player_widget.dart';
 import '../../onboarding/models/prompt.dart';
 import 'widgets/edit_profile_sheets.dart';
 import 'edit_media_screen.dart';
@@ -28,25 +28,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Map<String, dynamic> _userData = {};
   bool _isLoading = true;
   bool _isSaving = false;
-  
-  // Voice prompt playback
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  bool _isPlayingVoice = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
-    _audioPlayer.playerStateStream.listen((state) {
-      if (mounted && state.processingState == ProcessingState.completed) {
-        setState(() => _isPlayingVoice = false);
-      }
-    });
   }
 
   @override
   void dispose() {
-    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -487,80 +477,56 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
     
     final question = voicePrompt['question'] as String? ?? 'Voice Prompt';
-    final duration = voicePrompt['duration'] as int? ?? 0;
-    final durationStr = '${(duration / 1000).toStringAsFixed(1)}s';
+    final durationSeconds = voicePrompt['durationSeconds'] as int? ?? 0;
+    final audioUrl = voicePrompt['audioUrl'] as String?;
     
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.orange.withValues(alpha: 0.08), Colors.deepOrange.withValues(alpha: 0.05)],
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Question header
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.orange.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.mic, color: Colors.deepOrange, size: 24),
+                child: const Icon(Icons.mic, color: Colors.deepOrange, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(question, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                    Text(durationStr, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: _playVoicePrompt,
-                icon: Icon(
-                  _isPlayingVoice ? Icons.pause_circle_filled : Icons.play_circle_filled,
-                  color: Colors.deepOrange,
-                  size: 40,
+                child: Text(
+                  question, 
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
               ),
               IconButton(
                 onPressed: _deleteVoicePrompt,
-                icon: Icon(Icons.delete_outline, color: Colors.grey[600]),
+                icon: Icon(Icons.delete_outline, color: Colors.grey[500], size: 22),
+                tooltip: 'Delete voice prompt',
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          
+          // Audio player widget
+          if (audioUrl != null)
+            AudioPlayerWidget(
+              audioUrl: audioUrl,
+              duration: Duration(seconds: durationSeconds),
+              isMine: false, // Use light theme style
+            ),
         ],
       ),
     );
-  }
-
-  Future<void> _playVoicePrompt() async {
-    final voicePrompt = _userData['voicePrompt'] as Map<String, dynamic>?;
-    if (voicePrompt == null) return;
-    
-    final audioUrl = voicePrompt['audioUrl'] as String?;
-    if (audioUrl == null) return;
-    
-    try {
-      if (_isPlayingVoice) {
-        await _audioPlayer.pause();
-        setState(() => _isPlayingVoice = false);
-      } else {
-        await _audioPlayer.setUrl(audioUrl);
-        setState(() => _isPlayingVoice = true);
-        await _audioPlayer.play();
-      }
-    } catch (e) {
-      setState(() => _isPlayingVoice = false);
-      showTopNotification(context, 'Error playing voice prompt', isError: true);
-    }
   }
 
   Future<void> _deleteVoicePrompt() async {

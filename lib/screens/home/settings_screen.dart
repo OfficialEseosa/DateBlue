@@ -4,9 +4,11 @@ import 'dart:io' show Platform;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../login_page.dart';
 import 'admin/admin_screen.dart';
 import '../../services/notification_service.dart';
+import '../../services/messaging_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final User user;
@@ -301,6 +303,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                   const SizedBox(height: 32),
 
+                  // Privacy Section
+                  const Text(
+                    'Privacy',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.block, color: Colors.red, size: 20),
+                      ),
+                      title: const Text(
+                        'Blocked Users',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                      onTap: () => _showBlockedUsers(),
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
                   // Actions Section
                   const Text(
                     'Actions',
@@ -564,6 +610,111 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Icon(
               Icons.chevron_right,
               color: Colors.grey[400],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBlockedUsers() {
+    final messagingService = MessagingService();
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => Column(
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Blocked Users',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Expanded(
+              child: FutureBuilder<List<Map<String, dynamic>>>(
+                future: messagingService.getBlockedUsers(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  
+                  final blockedUsers = snapshot.data ?? [];
+                  
+                  if (blockedUsers.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.check_circle_outline, 
+                               size: 64, color: Colors.grey[300]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No blocked users',
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  
+                  return ListView.separated(
+                    controller: scrollController,
+                    itemCount: blockedUsers.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final user = blockedUsers[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.grey[300],
+                        backgroundImage: user['photoUrl'] != null
+                              ? CachedNetworkImageProvider(user['photoUrl'])
+                              : null,
+                          child: user['photoUrl'] == null
+                              ? const Icon(Icons.person, color: Colors.grey)
+                              : null,
+                        ),
+                        title: Text(user['firstName'] ?? 'User'),
+                        trailing: TextButton(
+                          onPressed: () async {
+                            await messagingService.unblockUser(user['userId']);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                SnackBar(
+                                  content: Text('${user['firstName']} unblocked'),
+                                ),
+                              );
+                            }
+                          },
+                          child: const Text('Unblock'),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),

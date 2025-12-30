@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'home/discover_page.dart';
 import 'home/likes_page.dart';
 import 'home/matches_page.dart';
 import 'home/profile_page.dart';
 import '../services/notification_service.dart';
+import '../services/messaging_service.dart';
+
+import 'dart:async';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -20,12 +24,19 @@ class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
   int _currentIndex = 0;
+  StreamSubscription? _userDataSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _setupUserDataListener();
     NotificationService().initialize(widget.user.uid);
+  }
+
+  @override
+  void dispose() {
+    _userDataSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -35,46 +46,39 @@ class _HomePageState extends State<HomePage> {
     if (_userData?['mediaUrls'] != null &&
         (_userData!['mediaUrls'] as List).isNotEmpty) {
       final mainPhotoUrl = (_userData!['mediaUrls'] as List)[0] as String;
-      precacheImage(NetworkImage(mainPhotoUrl), context);
+      precacheImage(CachedNetworkImageProvider(mainPhotoUrl), context);
     }
   }
 
-  Future<void> _loadUserData() async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.user.uid)
-          .get();
+  void _setupUserDataListener() {
+    _userDataSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.user.uid)
+        .snapshots()
+        .listen((doc) async {
+      if (!doc.exists || !mounted) return;
 
-      if (doc.exists) {
-        final data = doc.data();
-        
-        // Precache main photo immediately (await to ensure it's ready)
-        if (data?['mediaUrls'] != null &&
-            (data!['mediaUrls'] as List).isNotEmpty) {
-          final mediaUrls = data['mediaUrls'] as List;
-          final mainPhotoUrl = mediaUrls[0] as String;
-          
-          // Await the main photo precache so it's ready when user goes to profile
-          await precacheImage(NetworkImage(mainPhotoUrl), context);
-          
-          // Precache other photos in background (don't await)
-          for (int i = 1; i < mediaUrls.length; i++) {
-            precacheImage(NetworkImage(mediaUrls[i] as String), context);
-          }
+      final data = doc.data();
+      
+      // Precache photos in background
+      if (data?['mediaUrls'] != null &&
+          (data!['mediaUrls'] as List).isNotEmpty) {
+        final mediaUrls = data['mediaUrls'] as List;
+        for (int i = 0; i < mediaUrls.length; i++) {
+          precacheImage(CachedNetworkImageProvider(mediaUrls[i] as String), context);
         }
-        
+      }
+      
+      if (mounted) {
         setState(() {
           _userData = data;
           _isLoading = false;
         });
-      } else {
-        setState(() => _isLoading = false);
       }
-    } catch (e) {
+    }, onError: (e) {
       debugPrint('Error loading user data: $e');
-      setState(() => _isLoading = false);
-    }
+      if (mounted) setState(() => _isLoading = false);
+    });
   }
 
   @override
@@ -163,18 +167,20 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCurrentPage() {
-    switch (_currentIndex) {
-      case 0:
-        return DiscoverPage(user: widget.user, userData: _userData);
-      case 1:
-        return LikesPage(user: widget.user, userData: _userData);
-      case 2:
-        return MatchesPage(user: widget.user, userData: _userData);
-      case 3:
-        return ProfilePage(user: widget.user, userData: _userData);
-      default:
-        return DiscoverPage(user: widget.user, userData: _userData);
-    }
+    // IndexedStack keeps all pages alive, preventing rebuilds when switching tabs
+    return IndexedStack(
+      index: _currentIndex,
+      children: [
+        DiscoverPage(user: widget.user, userData: _userData),
+        LikesPage(user: widget.user, userData: _userData),
+        MatchesPage(
+          user: widget.user,
+          userData: _userData,
+          onNavigateToDiscover: () => setState(() => _currentIndex = 0),
+        ),
+        ProfilePage(user: widget.user, userData: _userData),
+      ],
+    );
   }
 
   Widget _buildBottomNavBar() {
@@ -202,20 +208,8 @@ class _HomePageState extends State<HomePage> {
                 animationType: NavAnimationType.spin,
                 onTap: () => setState(() => _currentIndex = 0),
               ),
-              _AnimatedNavIcon(
-                icon: Icons.favorite,
-                index: 1,
-                isSelected: _currentIndex == 1,
-                animationType: NavAnimationType.pulse,
-                onTap: () => setState(() => _currentIndex = 1),
-              ),
-              _AnimatedNavIcon(
-                icon: Icons.chat_bubble,
-                index: 2,
-                isSelected: _currentIndex == 2,
-                animationType: NavAnimationType.bounce,
-                onTap: () => setState(() => _currentIndex = 2),
-              ),
+              _buildLikesNavItem(),
+              _buildChatNavItem(),
               _AnimatedNavIcon(
                 icon: Icons.person,
                 index: 3,
@@ -227,6 +221,105 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLikesNavItem() {
+    // Get likes count from user data's receivedLikes array
+    final receivedLikes = _userData?['receivedLikes'] as List? ?? [];
+    final blockedUsers = List<String>.from(_userData?['blockedUsers'] ?? []);
+    
+    // Filter out blocked users
+    int likesCount = 0;
+    for (final like in receivedLikes) {
+      if (like is Map) {
+        final fromUserId = like['fromUserId'] as String?;
+        if (fromUserId != null && !blockedUsers.contains(fromUserId)) {
+          likesCount++;
+        }
+      }
+    }
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        _AnimatedNavIcon(
+          icon: Icons.favorite,
+          index: 1,
+          isSelected: _currentIndex == 1,
+          animationType: NavAnimationType.pulse,
+          onTap: () => setState(() => _currentIndex = 1),
+        ),
+        if (likesCount > 0)
+          Positioned(
+            right: -6,
+            top: -4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white, width: 1.5),
+              ),
+              child: Text(
+                likesCount > 9 ? '9+' : likesCount.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildChatNavItem() {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: MessagingService().getMatchesStream(),
+      builder: (context, snapshot) {
+        int totalUnread = 0;
+        if (snapshot.hasData) {
+          for (final match in snapshot.data!) {
+            totalUnread += (match['unreadCount'] as int? ?? 0);
+          }
+        }
+        
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            _AnimatedNavIcon(
+              icon: Icons.chat_bubble,
+              index: 2,
+              isSelected: _currentIndex == 2,
+              animationType: NavAnimationType.bounce,
+              onTap: () => setState(() => _currentIndex = 2),
+            ),
+            if (totalUnread > 0)
+              Positioned(
+                right: -6,
+                top: -4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: Text(
+                    totalUnread > 9 ? '9+' : totalUnread.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

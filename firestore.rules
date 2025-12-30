@@ -45,13 +45,50 @@ service cloud.firestore {
     }
     
     // Matches collection
-    // Matches are ONLY created by Cloud Functions (onInteractionCreated) after verifying mutual likes
-    // Users can only read matches they are part of
+    // Matches are created by Cloud Functions (onInteractionCreated)
+    // Users can read/update/delete matches they are part of
     match /matches/{matchId} {
+      // Helper to check if user is in the match
+      function isMatchParticipant() {
+        return request.auth != null && request.auth.uid in resource.data.users;
+      }
+      
       allow read: if request.auth != null && request.auth.uid in resource.data.users;
-      allow create: if false; // Only Cloud Functions (Admin SDK) can create matches
-      allow update: if false; // TODO: Enable for unmatch feature in the future
-      allow delete: if false; // Matches are permanent (or handled by admin)
+      allow create: if false; // Only Cloud Functions can create matches
+      allow update: if isMatchParticipant(); // For voice call toggles, etc.
+      allow delete: if isMatchParticipant(); // For unmatch
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        // Users can read messages in matches they're part of
+        allow read: if request.auth != null && 
+          request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.users;
+        
+        // Users can create messages if they're in the match
+        allow create: if request.auth != null && 
+          request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.users &&
+          request.resource.data.senderId == request.auth.uid;
+        
+        // Users can update their own messages (edit, mark as read)
+        allow update: if request.auth != null && 
+          request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.users;
+        
+        // Only sender can delete their message (and must be in match)
+        allow delete: if request.auth != null && 
+          request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.users &&
+          resource.data.senderId == request.auth.uid;
+      }
+    }
+    
+    // Reports collection
+    match /reports/{reportId} {
+      // Users can create reports
+      allow create: if request.auth != null && 
+        request.resource.data.reporterId == request.auth.uid;
+      
+      // Only admins can read/update reports
+      allow read, update: if isAdmin();
+      allow delete: if false;
     }
     
     match /mail/{mailId} {

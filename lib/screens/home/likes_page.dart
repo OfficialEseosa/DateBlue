@@ -60,7 +60,11 @@ class _LikesPageState extends State<LikesPage> with AutomaticKeepAliveClientMixi
       
       final data = snapshot.data();
       final receivedLikes = List<Map<String, dynamic>>.from(data?['receivedLikes'] ?? []);
-      final ids = receivedLikes.map((like) => like['fromUserId'] as String).toList();
+      var ids = receivedLikes.map((like) => like['fromUserId'] as String).toList();
+      
+      // Filter out blocked users
+      final blockedUsers = List<String>.from(data?['blockedUsers'] ?? []);
+      ids = ids.where((id) => !blockedUsers.contains(id)).toList();
       
       // Batch fetch any new profiles
       await _batchFetchProfiles(ids);
@@ -87,7 +91,11 @@ class _LikesPageState extends State<LikesPage> with AutomaticKeepAliveClientMixi
       
       final data = doc.data();
       final receivedLikes = List<Map<String, dynamic>>.from(data?['receivedLikes'] ?? []);
-      final ids = receivedLikes.map((like) => like['fromUserId'] as String).toList();
+      var ids = receivedLikes.map((like) => like['fromUserId'] as String).toList();
+      
+      // Filter out blocked users
+      final blockedUsers = List<String>.from(data?['blockedUsers'] ?? []);
+      ids = ids.where((id) => !blockedUsers.contains(id)).toList();
       
       // Batch fetch all profiles (Firestore whereIn limited to 10, so chunk)
       await _batchFetchProfiles(ids);
