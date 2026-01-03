@@ -6,7 +6,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:media_kit/media_kit.dart';
 import 'screens/login_page.dart';
 import 'screens/verification_page.dart';
 import 'firebase_options.dart';
@@ -15,8 +14,6 @@ import 'services/message_cache_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  MediaKit.ensureInitialized();
   
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -28,13 +25,6 @@ void main() async {
 
   if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
     await GoogleSignIn.instance.initialize();
-  }
-
-  try {
-    await LoginPage.preloadVideo();
-  } catch (e, stack) {
-    debugPrint('Failed to preload video: $e');
-    debugPrint(stack.toString());
   }
   
   runApp(const MyApp());

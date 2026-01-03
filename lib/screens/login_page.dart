@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io' show Platform;
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
+import 'package:video_player/video_player.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'verification_page.dart';
@@ -10,35 +8,13 @@ import 'verification_page.dart';
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
-  // Static controller that persists across widget rebuilds
-  static Player? _preloadedPlayer;
-  static VideoController? _preloadedController;
-  static bool _isPreloaded = false;
-
-  // Preload video before navigating to login page
-  // Note: Only preloads the Player. VideoController is created later
-  // in the widget because it requires the Flutter rendering pipeline.
-  static Future<void> preloadVideo() async {
-    if (_isPreloaded) return;
-    _preloadedPlayer = Player();
-    // Don't create VideoController here - it requires the widget tree to be ready
-    await _preloadedPlayer!.open(
-      Media('asset:///assets/videos/login_bg.mp4'),
-      play: false,
-    );
-    await _preloadedPlayer!.setPlaylistMode(PlaylistMode.loop);
-    await _preloadedPlayer!.setVolume(0.0);
-    _isPreloaded = true;
-  }
-
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
-  Player? _player;
-  VideoController? _videoController;
-  bool _videoReady = false;
+  VideoPlayerController? _videoController;
+  bool _videoInitialized = false;
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
   @override
@@ -51,110 +27,47 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.resumed) {
-      _resumeVideoPlayback();
-    }
-  }
-
-  Future<void> _resumeVideoPlayback() async {
-    if (_player != null && mounted) {
-      if (!_player!.state.playing) {
-        await _player!.play();
+    if (state == AppLifecycleState.resumed && _videoController != null) {
+      if (!_videoController!.value.isPlaying) {
+        _videoController!.play();
       }
+    } else if (state == AppLifecycleState.paused && _videoController != null) {
+      _videoController!.pause();
     }
   }
 
   Future<void> _initVideoPlayer() async {
-    if (LoginPage._isPreloaded && LoginPage._preloadedPlayer != null) {
-      // Use the preloaded player
-      _player = LoginPage._preloadedPlayer;
-      
-      // Create the VideoController if it doesn't exist yet
-      LoginPage._preloadedController ??= VideoController(_player!);
-      _videoController = LoginPage._preloadedController;
-      
-      // Check if already playing (returning from another screen)
-      final isPlaying = _player!.state.playing;
-      final hasWidth = _player!.state.width != null && _player!.state.width! > 0;
-      
-      if (isPlaying && hasWidth) {
-        // Video is already playing, just mark as ready after a brief delay
-        await Future.delayed(const Duration(milliseconds: 50));
-        if (mounted) {
-          setState(() {
-            _videoReady = true;
-          });
-        }
-      } else {
-        // Start playing
-        _player!.play();
-        
-        // Wait for video to actually start playing (first frame ready)
-        await _player!.stream.playing.firstWhere((playing) => playing);
-        
-        // Additional wait for the video to have width/height (fully decoded)
-        await _player!.stream.width.firstWhere((w) => w != null && w > 0);
-        
-        // Small delay to ensure frames are rendered before fading poster
-        await Future.delayed(const Duration(milliseconds: 150));
-        
-        if (mounted) {
-          setState(() {
-            _videoReady = true;
-          });
-        }
-      }
-    } else {
-      // Fallback to loading if preload didn't happen
-      _player = Player();
-      _videoController = VideoController(_player!);
-      await _player!.open(
-        Media('asset:///assets/videos/login_bg.mp4'),
-        play: false,
-      );
-      await _player!.setPlaylistMode(PlaylistMode.loop);
-      await _player!.setVolume(0.0);
-      
-      // Start playing
-      _player!.play();
-      await _player!.stream.playing.firstWhere((playing) => playing);
-      await _player!.stream.width.firstWhere((w) => w != null && w > 0);
-      
-      // Small delay to ensure frames are rendered before fading poster
-      await Future.delayed(const Duration(milliseconds: 150));
+    _videoController = VideoPlayerController.asset('assets/videos/login_bg.mp4');
+    
+    try {
+      await _videoController!.initialize();
+      await _videoController!.setLooping(true);
+      await _videoController!.setVolume(0.0);
+      await _videoController!.play();
       
       if (mounted) {
         setState(() {
-          _videoReady = true;
+          _videoInitialized = true;
         });
       }
+    } catch (e) {
+      debugPrint('Error initializing video: $e');
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // Don't dispose the preloaded player
-    if (_player != null && _player != LoginPage._preloadedPlayer) {
-      _player?.dispose();
-    }
+    _videoController?.dispose();
     super.dispose();
   }
 
   Future<void> _handleGoogleSignIn() async {
     try {
-      // Check if we're on web or desktop (Windows, macOS, Linux)
-      final bool useFirebasePopup = kIsWeb || 
-          (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux));
-      
-      if (useFirebasePopup) {
-        // Web and Desktop platforms: Use Firebase Auth popup directly
+      if (kIsWeb) {
         final GoogleAuthProvider googleProvider = GoogleAuthProvider();
-        
-        // Add scopes if needed
         googleProvider.addScope('email');
         
-        // Sign in with popup
         final UserCredential userCredential = 
             await FirebaseAuth.instance.signInWithPopup(googleProvider);
         
@@ -169,11 +82,9 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
           }
         }
       } else {
-        // Mobile platforms (Android/iOS): Use google_sign_in package v7.x
         final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
-        if (googleUser == null) return; // User canceled the sign-in
+        if (googleUser == null) return;
 
-        // Get authorization client and request tokens
         final GoogleSignInClientAuthorization? authorization = 
             await googleUser.authorizationClient.authorizationForScopes(['email']);
         
@@ -181,13 +92,11 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
           throw Exception('Failed to get authorization tokens');
         }
 
-        // Create a new credential using the access token
         final OAuthCredential credential = GoogleAuthProvider.credential(
           accessToken: authorization.accessToken,
           idToken: googleUser.authentication.idToken,
         );
 
-        // Sign in to Firebase with the credential
         final UserCredential userCredential =
             await FirebaseAuth.instance.signInWithCredential(credential);
 
@@ -217,28 +126,27 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     return Scaffold(
       body: Stack(
         children: [
-          // Layer 1: Video (always present, renders behind poster)
-          if (_videoController != null)
-            SizedBox.expand(
-              child: Video(
-                controller: _videoController!,
-                fit: BoxFit.cover,
-              ),
+          // Layer 0: Static poster (first frame) - ALWAYS visible as background
+          // This prevents black flash - video just plays on top of it
+          SizedBox.expand(
+            child: Image.asset(
+              'assets/images/login_bg_poster.jpg',
+              fit: BoxFit.cover,
             ),
-          
-          // Layer 2: Poster image (fades OUT when video is ready)
-          IgnorePointer(
-            child: AnimatedOpacity(
-              opacity: _videoReady ? 0.0 : 1.0,
-              duration: const Duration(milliseconds: 500),
-              child: SizedBox.expand(
-                child: Image.asset(
-                  'assets/images/login_bg_poster.jpg',
-                  fit: BoxFit.cover,
+          ),
+
+          // Layer 1: Video (plays on top of poster when ready)
+          if (_videoInitialized && _videoController != null)
+            SizedBox.expand(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _videoController!.value.size.width,
+                  height: _videoController!.value.size.height,
+                  child: VideoPlayer(_videoController!),
                 ),
               ),
             ),
-          ),
 
           // Overlay to make text/buttons readable
           Container(
