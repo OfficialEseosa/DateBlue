@@ -39,12 +39,14 @@ class VoicePrompt {
   final String? audioUrl;
   final String? localPath;
   final int durationSeconds;
+  final List<double>? waveformData; // Normalized amplitude values (0.0 - 1.0)
 
   VoicePrompt({
     required this.question,
     this.audioUrl,
     this.localPath,
     this.durationSeconds = 0,
+    this.waveformData,
   });
 
   Map<String, dynamic> toMap() {
@@ -52,14 +54,20 @@ class VoicePrompt {
       'question': question,
       'audioUrl': audioUrl,
       'durationSeconds': durationSeconds,
+      if (waveformData != null) 'waveformData': waveformData,
     };
   }
 
   factory VoicePrompt.fromMap(Map<String, dynamic> map) {
+    List<double>? waveform;
+    if (map['waveformData'] != null) {
+      waveform = (map['waveformData'] as List).map((e) => (e as num).toDouble()).toList();
+    }
     return VoicePrompt(
       question: map['question'] ?? '',
       audioUrl: map['audioUrl'],
       durationSeconds: map['durationSeconds'] ?? 0,
+      waveformData: waveform,
     );
   }
 }

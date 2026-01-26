@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
 import '../../../models/profile_options.dart';
 import '../../../widgets/top_notification.dart';
 import '../../../widgets/prompts/prompts_widgets.dart';
+import '../../../widgets/prompts/voice_recorder_sheet.dart';
 import '../../../widgets/audio_player_widget.dart';
 import '../../onboarding/models/prompt.dart';
 import 'widgets/edit_profile_sheets.dart';
@@ -471,7 +474,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           icon: Icons.mic,
           label: 'Voice Prompt',
           value: 'Add a voice recording',
-          onTap: () => showTopNotification(context, 'Voice prompt recording coming soon'),
+          onTap: _showVoiceRecorder,
         ),
       );
     }
@@ -530,8 +533,83 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _deleteVoicePrompt() async {
-    await _saveField('voicePrompt', null);
-    showTopNotification(context, 'Voice prompt deleted');
+    try {
+      // Delete from Firestore using FieldValue.delete()
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.user.uid)
+          .update({'voicePrompt': FieldValue.delete()});
+      
+      setState(() {
+        _userData.remove('voicePrompt');
+      });
+      
+      if (mounted) {
+        showTopNotification(context, 'Voice prompt deleted');
+      }
+    } catch (e) {
+      if (mounted) {
+        showTopNotification(context, 'Error deleting voice prompt', isError: true);
+      }
+    }
+  }
+
+  void _showVoiceRecorder() {
+    PromptCategoryPicker.showVoicePromptPicker(
+      context: context,
+      onQuestionSelected: (question) {
+        VoiceRecorderSheet.show(
+          context: context,
+          question: question,
+          onSave: (voicePrompt) async {
+            await _saveVoicePrompt(voicePrompt);
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _saveVoicePrompt(VoicePrompt voicePrompt) async {
+    if (voicePrompt.localPath == null) return;
+    
+    try {
+      setState(() => _isSaving = true);
+      
+      // Upload audio file
+      final file = File(voicePrompt.localPath!);
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('users/${widget.user.uid}/voice_prompts/voice_prompt.aac');
+      await ref.putFile(file);
+      final url = await ref.getDownloadURL();
+      
+      // Save to Firestore
+      final data = {
+        'question': voicePrompt.question,
+        'audioUrl': url,
+        'durationSeconds': voicePrompt.durationSeconds,
+        if (voicePrompt.waveformData != null) 'waveformData': voicePrompt.waveformData,
+      };
+      
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.user.uid)
+          .update({'voicePrompt': data});
+      
+      setState(() {
+        _userData['voicePrompt'] = data;
+        _isSaving = false;
+      });
+      
+      if (mounted) {
+        showTopNotification(context, 'Voice prompt saved!');
+      }
+    } catch (e) {
+      setState(() => _isSaving = false);
+      if (mounted) {
+        showTopNotification(context, 'Error saving voice prompt', isError: true);
+      }
+    }
   }
 
   // =================== VITALS ===================

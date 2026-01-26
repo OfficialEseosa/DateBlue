@@ -3,7 +3,7 @@ import '../../models/profile_data.dart';
 import '../../theme/date_blue_theme.dart';
 
 /// A card displaying a profile prompt with question and answer.
-/// Styled like Hinge prompt cards.
+/// Styled like Hinge prompt cards with smaller question, larger answer.
 class ProfilePromptCard extends StatelessWidget {
   final ProfilePrompt prompt;
 
@@ -42,17 +42,27 @@ class ProfilePromptCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           
-          // Question
+          // Question - smaller, muted
           Text(
             prompt.question,
-            style: DateBlueTheme.promptQuestion,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: DateBlueTheme.textSecondary,
+              letterSpacing: 0.3,
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           
-          // Answer
+          // Answer - larger, prominent
           Text(
             prompt.text,
-            style: DateBlueTheme.promptAnswer,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: DateBlueTheme.textPrimary,
+              height: 1.3,
+            ),
           ),
         ],
       ),

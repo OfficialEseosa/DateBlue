@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:just_audio/just_audio.dart';
@@ -40,7 +41,7 @@ class VoiceRecorderSheet extends StatefulWidget {
 }
 
 class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
-  late RecorderController _recorderController;
+  RecorderController? _recorderController;
   final AudioPlayer _audioPlayer = AudioPlayer();
   
   bool _isRecording = false;
@@ -48,6 +49,8 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
   int _recordingSeconds = 0;
   Timer? _recordingTimer;
   String? _localAudioPath;
+  List<double> _waveformSamples = [];
+  bool _isWeb = false;
 
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -55,12 +58,16 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
   @override
   void initState() {
     super.initState();
-    _recorderController = RecorderController()
-      ..androidEncoder = AndroidEncoder.aac
-      ..androidOutputFormat = AndroidOutputFormat.aac_adts
-      ..iosEncoder = IosEncoder.kAudioFormatMPEG4AAC
-      ..sampleRate = 48000
-      ..bitRate = 128000;
+    _isWeb = kIsWeb;
+    
+    if (!_isWeb) {
+      _recorderController = RecorderController()
+        ..androidEncoder = AndroidEncoder.aac
+        ..androidOutputFormat = AndroidOutputFormat.aac_adts
+        ..iosEncoder = IosEncoder.kAudioFormatMPEG4AAC
+        ..sampleRate = 48000
+        ..bitRate = 128000;
+    }
     
     // Listen to player state changes
     _audioPlayer.playerStateStream.listen((state) {
@@ -84,7 +91,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
   @override
   void dispose() {
     _recordingTimer?.cancel();
-    _recorderController.dispose();
+    _recorderController?.dispose();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -104,16 +111,26 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
       final dir = await getTemporaryDirectory();
       final path = '${dir.path}/voice_prompt_${DateTime.now().millisecondsSinceEpoch}.aac';
 
-      await _recorderController.record(path: path);
+      await _recorderController?.record(path: path);
 
       setState(() {
         _isRecording = true;
         _recordingSeconds = 0;
         _localAudioPath = null;
+        _waveformSamples = [];
       });
 
-      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        setState(() => _recordingSeconds++);
+      _recordingTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+        // Capture waveform samples ~10 times per second
+        final waveData = _recorderController?.waveData ?? [];
+        if (waveData.isNotEmpty) {
+          _waveformSamples.add(waveData.last.abs());
+        }
+        
+        // Update seconds display every 10 ticks
+        if (timer.tick % 10 == 0) {
+          setState(() => _recordingSeconds = timer.tick ~/ 10);
+        }
 
         if (_recordingSeconds >= 10) {
           _stopRecording();
@@ -131,9 +148,9 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
   Future<void> _stopRecording() async {
     _recordingTimer?.cancel();
 
-    if (_isRecording) {
+    if (_isRecording && _recorderController != null) {
       try {
-        final path = await _recorderController.stop();
+        final path = await _recorderController!.stop();
         setState(() {
           _localAudioPath = path;
           _isRecording = false;
@@ -181,13 +198,50 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
   void _save() {
     if (_localAudioPath != null) {
       _audioPlayer.stop();
+      // Normalize and downsample waveform to ~50 points for storage
+      final normalizedWaveform = _normalizeWaveform(_waveformSamples, 50);
       widget.onSave(VoicePrompt(
         question: widget.question,
         localPath: _localAudioPath,
         durationSeconds: _recordingSeconds,
+        waveformData: normalizedWaveform,
       ));
       Navigator.pop(context);
     }
+  }
+
+  List<double> _normalizeWaveform(List<double> samples, int targetLength) {
+    if (samples.isEmpty) return List.filled(targetLength, 0.3);
+    
+    // Find max for normalization
+    final maxVal = samples.reduce((a, b) => a > b ? a : b).clamp(1.0, double.infinity);
+    
+    // Downsample or upsample to target length
+    final List<double> result = [];
+    final step = samples.length / targetLength;
+    
+    for (int i = 0; i < targetLength; i++) {
+      final startIdx = (i * step).floor();
+      final endIdx = ((i + 1) * step).floor().clamp(0, samples.length);
+      
+      if (startIdx >= samples.length) {
+        result.add(0.3);
+        continue;
+      }
+      
+      // Average samples in this bucket
+      double sum = 0;
+      int count = 0;
+      for (int j = startIdx; j < endIdx && j < samples.length; j++) {
+        sum += samples[j];
+        count++;
+      }
+      
+      final normalized = count > 0 ? (sum / count / maxVal).clamp(0.1, 1.0) : 0.3;
+      result.add(normalized);
+    }
+    
+    return result;
   }
 
   String _formatDuration(Duration d) {
@@ -197,6 +251,69 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // Show not supported message on web
+    if (_isWeb) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 40),
+            Icon(Icons.mic_off, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 20),
+            const Text(
+              'Voice Recording Not Available',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0039A6),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Voice prompts can only be recorded on mobile devices (iOS/Android).',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 30),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0039A6),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Got it', style: TextStyle(color: Colors.white, fontSize: 16)),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: const BoxDecoration(

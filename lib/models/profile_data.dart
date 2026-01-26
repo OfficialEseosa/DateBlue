@@ -7,6 +7,7 @@ class ProfileData {
   final String firstName;
   final int? age;
   final String? campus;
+  final String? gender;
   final String? pronouns;
   final String? sexuality;
   final String? height;
@@ -22,8 +23,10 @@ class ProfileData {
   final String? weedStatus;
   final String? drugStatus;
   final String? children;
+  final String? wantChildren;
   final List<String> mediaUrls;
   final List<ProfilePrompt> prompts;
+  final ProfileVoicePrompt? voicePrompt;
   
   // Visibility flags
   final bool showHeight;
@@ -34,12 +37,15 @@ class ProfileData {
   final bool showIntentions;
   final bool showSubstanceUse;
   final bool showChildren;
+  final bool showGenderPronouns;
+  final bool showSexuality;
 
   const ProfileData({
     required this.id,
     required this.firstName,
     this.age,
     this.campus,
+    this.gender,
     this.pronouns,
     this.sexuality,
     this.height,
@@ -55,8 +61,10 @@ class ProfileData {
     this.weedStatus,
     this.drugStatus,
     this.children,
+    this.wantChildren,
     this.mediaUrls = const [],
     this.prompts = const [],
+    this.voicePrompt,
     this.showHeight = true,
     this.showHometown = true,
     this.showWork = true,
@@ -65,6 +73,8 @@ class ProfileData {
     this.showIntentions = true,
     this.showSubstanceUse = true,
     this.showChildren = true,
+    this.showGenderPronouns = true,
+    this.showSexuality = true,
   });
 
   /// Creates a ProfileData from Firestore document data
@@ -122,11 +132,12 @@ class ProfileData {
       firstName: data['firstName'] ?? 'Unknown',
       age: age,
       campus: data['campus'],
+      gender: data['gender'],
       pronouns: data['pronouns'],
       sexuality: data['sexuality'],
       height: height,
       heightCm: data['heightCm'],
-      hometown: data['hometown'],
+      hometown: _parseHometown(data),
       workplace: data['workplace'],
       jobTitle: data['jobTitle'],
       ethnicities: ethnicities,
@@ -137,16 +148,20 @@ class ProfileData {
       weedStatus: data['weedStatus'],
       drugStatus: data['drugStatus'],
       children: data['children'],
+      wantChildren: data['wantChildren'],
       mediaUrls: mediaUrls,
       prompts: prompts,
-      showHeight: data['showHeightOnProfile'] ?? true,
-      showHometown: data['showHometownOnProfile'] ?? true,
-      showWork: data['showWorkOnProfile'] ?? true,
-      showEthnicity: data['showEthnicityOnProfile'] ?? true,
-      showReligiousBeliefs: data['showReligiousBeliefOnProfile'] ?? true,
-      showIntentions: data['showIntentionsOnProfile'] ?? true,
-      showSubstanceUse: data['showSubstanceUseOnProfile'] ?? true,
-      showChildren: data['showChildrenOnProfile'] ?? true,
+      voicePrompt: _parseVoicePrompt(data['voicePrompt']),
+      showHeight: data['showHeightOnProfile'] == true,
+      showHometown: data['showHometownOnProfile'] == true,
+      showWork: data['showWorkOnProfile'] == true,
+      showEthnicity: data['showEthnicityOnProfile'] == true,
+      showReligiousBeliefs: data['showReligiousBeliefOnProfile'] == true,
+      showIntentions: data['showIntentionsOnProfile'] == true,
+      showSubstanceUse: data['showSubstanceUseOnProfile'] == true,
+      showChildren: data['showChildrenOnProfile'] == true,
+      showGenderPronouns: data['showPronounsOnProfile'] == true,
+      showSexuality: data['showSexualityOnProfile'] == true,
     );
   }
 
@@ -158,6 +173,30 @@ class ProfileData {
       age--;
     }
     return age;
+  }
+
+  static String? _parseHometown(Map<String, dynamic> data) {
+    // Try new format first (hometownCity, hometownState)
+    final city = data['hometownCity'] as String?;
+    final state = data['hometownState'] as String?;
+    if (city != null && city.isNotEmpty) {
+      if (state != null && state.isNotEmpty) {
+        return '$city, $state';
+      }
+      return city;
+    }
+    // Fallback to old format
+    return data['hometown'] as String?;
+  }
+
+  static ProfileVoicePrompt? _parseVoicePrompt(dynamic voicePromptData) {
+    if (voicePromptData == null) return null;
+    try {
+      final map = voicePromptData as Map<String, dynamic>;
+      return ProfileVoicePrompt.fromMap(map);
+    } catch (e) {
+      return null;
+    }
   }
 
   /// Get formatted work string
@@ -190,84 +229,123 @@ class ProfileData {
     }
   }
 
-  /// Get visible vitals for display
-  List<ProfileVital> get visibleVitals {
+  /// Get basics vitals (height, hometown, work)
+  List<ProfileVital> get basicsVitals {
     final vitals = <ProfileVital>[];
-
     if (showHeight && height != null) {
-      vitals.add(ProfileVital(
-        icon: Icons.height,
-        label: 'Height',
-        value: height!,
-      ));
+      vitals.add(ProfileVital(icon: Icons.height, label: 'Height', value: height!));
     }
-
     if (showHometown && hometown != null) {
-      vitals.add(ProfileVital(
-        icon: Icons.location_on_outlined,
-        label: 'Hometown',
-        value: hometown!,
-      ));
+      vitals.add(ProfileVital(icon: Icons.location_on_outlined, label: 'From', value: hometown!));
     }
-
     if (showWork && formattedWork != null) {
-      vitals.add(ProfileVital(
-        icon: Icons.work_outline,
-        label: 'Work',
-        value: formattedWork!,
-      ));
+      vitals.add(ProfileVital(icon: Icons.work_outline, label: 'Work', value: formattedWork!));
     }
+    return vitals;
+  }
 
+  /// Get identity vitals (gender, pronouns, sexuality, ethnicity)
+  List<ProfileVital> get identityVitals {
+    final vitals = <ProfileVital>[];
+    if (showGenderPronouns) {
+      if (gender != null && pronouns != null) {
+        vitals.add(ProfileVital(icon: Icons.person_outline, label: 'Identity', value: '${_formatGender(gender!)} (${pronouns!})'));
+      } else if (gender != null) {
+        vitals.add(ProfileVital(icon: Icons.person_outline, label: 'Gender', value: _formatGender(gender!)));
+      } else if (pronouns != null) {
+        vitals.add(ProfileVital(icon: Icons.person_outline, label: 'Pronouns', value: pronouns!));
+      }
+    }
+    if (showSexuality && sexuality != null) {
+      vitals.add(ProfileVital(icon: Icons.favorite_outline, label: 'Sexuality', value: _formatSexuality(sexuality!)));
+    }
     if (showEthnicity && ethnicities != null && ethnicities!.isNotEmpty) {
-      vitals.add(ProfileVital(
-        icon: Icons.public,
-        label: 'Ethnicity',
-        value: _formatEthnicities(ethnicities!),
-      ));
+      vitals.add(ProfileVital(icon: Icons.public, label: 'Ethnicity', value: _formatEthnicities(ethnicities!)));
     }
+    return vitals;
+  }
 
+  /// Get lifestyle vitals (religion, drinking, smoking, weed)
+  List<ProfileVital> get lifestyleVitals {
+    final vitals = <ProfileVital>[];
     if (showReligiousBeliefs && religiousBeliefs != null && religiousBeliefs!.isNotEmpty) {
-      vitals.add(ProfileVital(
-        icon: Icons.auto_awesome,
-        label: 'Religion',
-        value: religiousBeliefs!.join(', '),
-      ));
+      vitals.add(ProfileVital(icon: Icons.auto_awesome, label: 'Religion', value: religiousBeliefs!.join(', ')));
     }
-
-    if (showIntentions && intentionsLabel != null) {
-      vitals.add(ProfileVital(
-        icon: Icons.favorite_border,
-        label: 'Looking for',
-        value: intentionsLabel!,
-      ));
-    }
-
-    if (showChildren && children != null) {
-      vitals.add(ProfileVital(
-        icon: Icons.child_care,
-        label: 'Children',
-        value: children!,
-      ));
-    }
-
     if (showSubstanceUse) {
       if (drinkingStatus != null && drinkingStatus != 'Prefer not to say') {
-        vitals.add(ProfileVital(
-          icon: Icons.local_bar,
-          label: 'Drinking',
-          value: drinkingStatus!,
-        ));
+        vitals.add(ProfileVital(icon: Icons.local_bar, label: 'Drinking', value: drinkingStatus!));
       }
       if (smokingStatus != null && smokingStatus != 'Prefer not to say') {
-        vitals.add(ProfileVital(
-          icon: Icons.smoking_rooms,
-          label: 'Smoking',
-          value: smokingStatus!,
-        ));
+        vitals.add(ProfileVital(icon: Icons.smoking_rooms, label: 'Smoking', value: smokingStatus!));
+      }
+      if (weedStatus != null && weedStatus != 'Prefer not to say') {
+        vitals.add(ProfileVital(icon: Icons.eco, label: 'Weed', value: weedStatus!));
       }
     }
-
     return vitals;
+  }
+
+  /// Get relationship vitals (intentions, children status, want children)
+  List<ProfileVital> get relationshipVitals {
+    final vitals = <ProfileVital>[];
+    if (showIntentions && intentionsLabel != null) {
+      vitals.add(ProfileVital(icon: Icons.favorite_border, label: 'Looking for', value: intentionsLabel!));
+    }
+    if (showChildren) {
+      if (children != null) {
+        vitals.add(ProfileVital(icon: Icons.family_restroom, label: 'Children', value: _formatHasChildren(children!)));
+      }
+      if (wantChildren != null) {
+        vitals.add(ProfileVital(icon: Icons.child_care, label: 'Family plans', value: _formatWantChildren(wantChildren!)));
+      }
+    }
+    return vitals;
+  }
+
+  String _formatGender(String value) {
+    switch (value) {
+      case 'man': return 'Man';
+      case 'woman': return 'Woman';
+      case 'nonbinary': return 'Non-binary';
+      default: return value;
+    }
+  }
+
+  String _formatSexuality(String value) {
+    switch (value) {
+      case 'straight': return 'Straight';
+      case 'gay': return 'Gay';
+      case 'lesbian': return 'Lesbian';
+      case 'bisexual': return 'Bisexual';
+      case 'pansexual': return 'Pansexual';
+      case 'asexual': return 'Asexual';
+      case 'queer': return 'Queer';
+      case 'questioning': return 'Questioning';
+      default: return value;
+    }
+  }
+
+  String _formatHasChildren(String value) {
+    switch (value) {
+      case 'no_children': return "Don't have children";
+      case 'have_children': return 'Have children';
+      default: return value;
+    }
+  }
+
+  String _formatWantChildren(String value) {
+    switch (value) {
+      case 'want_children': return 'Want children';
+      case 'dont_want_children': return "Don't want children";
+      case 'open_to_children': return 'Open to children';
+      case 'not_sure': return 'Not sure yet';
+      default: return value;
+    }
+  }
+
+  /// Get visible vitals for display (all categories combined)
+  List<ProfileVital> get visibleVitals {
+    return [...basicsVitals, ...identityVitals, ...lifestyleVitals, ...relationshipVitals];
   }
 
   String _formatEthnicities(List<String> ethnicities) {
@@ -341,4 +419,32 @@ class ProfileVital {
     required this.label,
     required this.value,
   });
+}
+
+/// Represents a voice prompt recording
+class ProfileVoicePrompt {
+  final String question;
+  final String? audioUrl;
+  final int durationSeconds;
+  final List<double>? waveformData;
+
+  const ProfileVoicePrompt({
+    required this.question,
+    this.audioUrl,
+    this.durationSeconds = 0,
+    this.waveformData,
+  });
+
+  factory ProfileVoicePrompt.fromMap(Map<String, dynamic> map) {
+    List<double>? waveform;
+    if (map['waveformData'] != null) {
+      waveform = (map['waveformData'] as List).map((e) => (e as num).toDouble()).toList();
+    }
+    return ProfileVoicePrompt(
+      question: map['question'] ?? '',
+      audioUrl: map['audioUrl'],
+      durationSeconds: map['durationSeconds'] ?? 0,
+      waveformData: waveform,
+    );
+  }
 }

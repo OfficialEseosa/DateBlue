@@ -31,11 +31,15 @@ class ProfileCard extends StatelessWidget {
     this.actionButtons,
   });
 
+  String get _heroTag => 'profile_photo_${profile.id}';
+
   void _showExpandedProfile(BuildContext context) {
     Navigator.of(context).push(
       PageRouteBuilder(
         opaque: false,
         barrierColor: Colors.black54,
+        transitionDuration: const Duration(milliseconds: 400),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
         pageBuilder: (context, animation, secondaryAnimation) {
           return ExpandedProfileCard(
             profile: profile,
@@ -43,17 +47,12 @@ class ProfileCard extends StatelessWidget {
             onClose: () => Navigator.of(context).pop(),
             onLike: onLike,
             onPass: onPass,
+            heroTag: _heroTag,
           );
         },
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 1),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            )),
+          return FadeTransition(
+            opacity: animation,
             child: child,
           );
         },
@@ -74,8 +73,14 @@ class ProfileCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Main Photo
-            _buildMainPhoto(mainPhotoUrl),
+            // Main Photo with Hero animation
+            Hero(
+              tag: _heroTag,
+              child: Material(
+                type: MaterialType.transparency,
+                child: _buildMainPhoto(mainPhotoUrl),
+              ),
+            ),
 
             // Top-right action buttons (for own profile)
             if (isOwnProfile && (onSettingsTap != null || onEditTap != null))
