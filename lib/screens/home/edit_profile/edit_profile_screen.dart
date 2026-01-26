@@ -534,6 +534,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _deleteVoicePrompt() async {
     try {
+      // Delete audio file from Storage first
+      try {
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('users/${widget.user.uid}/voice_prompts/voice_prompt.aac');
+        await ref.delete();
+      } catch (e) {
+        // File may not exist, continue with Firestore deletion
+      }
+
       // Delete from Firestore using FieldValue.delete()
       await FirebaseFirestore.instance
           .collection('users')

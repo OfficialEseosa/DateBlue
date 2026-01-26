@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../models/profile_data.dart';
@@ -19,6 +20,7 @@ class VoicePromptPlayerCard extends StatefulWidget {
 
 class _VoicePromptPlayerCardState extends State<VoicePromptPlayerCard> {
   late AudioPlayer _audioPlayer;
+  final List<StreamSubscription> _subscriptions = [];
   bool _isPlaying = false;
   bool _isLoading = false;
   Duration _duration = Duration.zero;
@@ -32,7 +34,7 @@ class _VoicePromptPlayerCardState extends State<VoicePromptPlayerCard> {
   }
 
   void _setupAudioPlayer() {
-    _audioPlayer.playerStateStream.listen((state) {
+    _subscriptions.add(_audioPlayer.playerStateStream.listen((state) {
       if (mounted) {
         setState(() {
           _isPlaying = state.playing;
@@ -44,23 +46,26 @@ class _VoicePromptPlayerCardState extends State<VoicePromptPlayerCard> {
           }
         });
       }
-    });
+    }));
 
-    _audioPlayer.durationStream.listen((duration) {
+    _subscriptions.add(_audioPlayer.durationStream.listen((duration) {
       if (mounted && duration != null) {
         setState(() => _duration = duration);
       }
-    });
+    }));
 
-    _audioPlayer.positionStream.listen((position) {
+    _subscriptions.add(_audioPlayer.positionStream.listen((position) {
       if (mounted) {
         setState(() => _position = position);
       }
-    });
+    }));
   }
 
   @override
   void dispose() {
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
     _audioPlayer.dispose();
     super.dispose();
   }
